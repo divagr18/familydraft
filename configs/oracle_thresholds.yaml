@@ -1,0 +1,24 @@
+# Pre-registered oracle gate thresholds (plan todo 11).
+#
+# This file MUST be committed BEFORE any oracle analysis runs. The git
+# history ordering is the pre-registration proof; scripts/m2_order_check.py
+# asserts it. Editing these values after traces exist invalidates the gate.
+
+gate:
+  min_classes_passing: 2
+  required_classes: [code, structured]
+  min_position_coverage_at_1_token: 0.25
+  min_oracle_expected_speedup: 1.5
+  speedup_horizon: 8
+
+definitions:
+  copy_suffix_min_match: 4
+  repetition_ngram_min: 6
+  repetition_window: 512
+  depths: [1, 2, 4, 6, 8]
+
+classes:
+  chat: [mtbench]
+  code: [humaneval, mbpp_sanitized]
+  math: [gsm8k]
+  structured: [structured]

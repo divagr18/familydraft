@@ -1,0 +1,24 @@
+# Pinned trace campaign parameters (plan todo 10).
+#
+# Local runs (RTX 4060 dev box) use the local_* caps; RunPod campaigns use
+# max_new_tokens_by_class with full top-k capture. Parameters here are
+# committed BEFORE campaigns start and must not change mid-campaign.
+
+defaults:
+  seed: 0
+  decode: greedy
+  dtype: bf16
+  capture_topk: 64
+
+local_run:
+  max_prompts_per_class: 25
+  max_new_tokens: 192
+
+max_new_tokens_by_class:
+  chat: 2048
+  code: 2048
+  math: 4096
+  structured: 2048
+
+budget:
+  max_gpu_hours_per_config: 48
