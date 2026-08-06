@@ -1,0 +1,30 @@
+TASK 2 — RunPod pod spec + local hardware smoke test
+Execution mode: DIRECT by orchestrator (user directive "no agents").
+Original worker ses_027a3950dffergSX6tRLclILUu authored docs/infra.md, scripts/pod_setup.sh, scripts/smoke_local.py, then died on model quota before evidence/commit. All verification below performed directly at root, 2026-08-07 (UTC+05:30).
+
+[1] $ uv run python scripts/smoke_local.py
+model            : Qwen/Qwen3-0.6B (bf16)
+device           : NVIDIA GeForce RTX 4060
+token_count      : 32
+decoded_text     :  using the principles of quantum mechanics to decode messages that have been encoded in a way that is not directly visible to the human eye. This is a form of quantum
+peak_vram_gb     : 1.207
+=> EXIT 0 (acceptance: 32 tokens, peak VRAM < 7.5GB) PASS
+Cross-check: decoded text matches tests/goldens/target_wrapper_greedy.txt recorded independently.
+
+[2] no-GPU failure path: $env:CUDA_VISIBLE_DEVICES="-1"; uv run python scripts/smoke_local.py
+smoke_local: CUDA GPU unavailable - no NVIDIA GPU is visible to torch 2.13.0+cu130 (expected a CUDA-capable device such as the local RTX 4060); refusing to run on CPU.
+=> EXIT 2 (clean one-line message, no traceback) PASS
+Note: $env:CUDA_VISIBLE_DEVICES="" is a PowerShell no-op; -1 was used.
+
+[3] bash syntax check: & "C:\Program Files\Git\bin\bash.exe" -n scripts/pod_setup.sh
+=> EXIT 0 PASS (plain `bash` resolves to WSL without distro; Git-bash used)
+
+[4] docs/infra.md content verified: SKU table (A100-80GB / H100 / RTX 4090 / local 4060), /workspace mount layout, env-var contract (RUNPOD_API_KEY / HF_TOKEN / HF_HOME, env-only), pinned versions transcribed from uv.lock, CUDA-13 deviation from plan recorded honestly, Windows cu130 torch caveat + exact fix command recorded.
+
+[adversarial]
+- misleading_success_output: every exit code above captured at runtime this session.
+- long_commands: model load from warm HF cache, <10s.
+- dirty_worktree: family_draft_moe_concept.md sha256 re-verified unchanged: AEB1FC915374663940D8F5E4FA092AA0359A85E2C6B1E4CD2E7DC34C1FCF0581.
+- not-applicable: malformed_input (no user input parsing), prompt_injection (no external text), cancel_resume (one-shot), stale_state (no cache writes), flaky_tests (no unit tests in this todo), repeated_interruptions (one-shot).
+
+[cleanup] nothing left running; no temp files outside D:\MoE.
