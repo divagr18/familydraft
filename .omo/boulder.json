@@ -7,7 +7,8 @@
       "active_plan": ".omo/plans/familydraft-moe.md",
       "plan_name": "familydraft-moe",
       "session_ids": ["codex:ses_027eb3d5dffeyfDw6mZCDrdjZd"],
-      "status": "active",
+      "status": "paused",
+      "hold_reason": "M2 oracle gate returned NO-GO on local 0.6B diagnostic; Waves D-G held pending user pivot decision (see docs/reports/pivot_options.md)",
       "worktree_path": null
     }
   }

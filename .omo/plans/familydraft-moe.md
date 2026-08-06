@@ -154,7 +154,7 @@ Training set = {4B, 8B, 14B} × auxiliary corpora; held-out unseen = {32B, Coder
   Commit: Y | feat(infra): deterministic run logger and timing primitives
 
 ### Wave B — Verification core (M1 gate)
-- [ ] 6. Reference sequential acceptance verifier (ground truth)
+- [x] 6. Reference sequential acceptance verifier (ground truth)
   What to do: `src/familydraft/verify/reference.py`: exact speculative-acceptance over a draft CHAIN — greedy mode (longest prefix where draft == target argmax) and sampling mode (standard accept/reject with adjusted residual distribution, Leviathan et al. 2023); pure-functional core `verify_chain(target_dists: list[Distribution], draft_tokens) -> accepted_prefix, bonus_token` operating on explicit categorical distributions so tests need no model. Must NOT do: no batching, no KV logic, no speed shortcuts — this is the oracle everything else is checked against.
   Parallelization: Wave B | Blocked by: 4 | Blocks: 8 | With: 7
   References: concept note D:\MoE\family_draft_moe_concept.md §3 (129-157); Leviathan et al. 2023 "Fast Inference from Transformers via Speculative Decoding" (arXiv:2211.17192); D8
@@ -162,7 +162,7 @@ Training set = {4B, 8B, 14B} × auxiliary corpora; held-out unseen = {32B, Coder
   QA scenarios: happy — goldens pass; failure — perturb one golden expectation: test fails naming the case id (asserted by keeping goldens in `tests/goldens/reference_verifier.json`). Evidence <attemptDir>/task-6-familydraft-moe.txt
   Commit: Y | feat(verify): reference sequential acceptance verifier
 
-- [ ] 7. Candidate trie/DAG builder with metadata
+- [x] 7. Candidate trie/DAG builder with metadata
   What to do: `src/familydraft/verify/dag.py`: token trie over family vocab; `insert(proposal_tokens, expert_id, confidence, router_prob)`; shared prefixes stored once; per-node metadata per concept note §6.2 (expert source, confidence, router probability, support count, marginal verification cost field); deterministic budget pruning to `max_nodes` keeping highest (support, confidence) lexicographic; export adjacency + topological order for the verifier. Golden cases = concept note §3.3 merge example (lines 143-152) and §4.7 rejection-memory example (lines 282-290). Must NOT do: no scoring policies (router's job, todo 19); no GPU code.
   Parallelization: Wave B | Blocked by: 1 | Blocks: 8, 18, 19 | With: 6
   References: concept note D:\MoE\family_draft_moe_concept.md:143-152 (§3.3 DAG example), 282-290 (§4.7 example), 389-426 (§6 construction rules)
@@ -170,7 +170,7 @@ Training set = {4B, 8B, 14B} × auxiliary corpora; held-out unseen = {32B, Coder
   QA scenarios: happy — goldens match concept-note figures exactly (asserted token-by-token); failure — proposal longer than remaining budget: deterministic prune, test asserts no node-count overflow and which proposal was trimmed. Evidence <attemptDir>/task-7-familydraft-moe.txt
   Commit: Y | feat(verify): candidate trie/DAG builder with metadata
 
-- [ ] 8. DAG verifier + equivalence gate (MILESTONE 1)
+- [x] 8. DAG verifier + equivalence gate (MILESTONE 1)
   What to do: `src/familydraft/verify/dag_verifier.py`: verify a candidate DAG against a target in ONE joint forward pass (tree attention over DAG nodes via SDPA/eager 4D masks with correct per-branch RoPE position_ids — flash-attn forbidden, platform pin; KV-cache of the base context reused), then walk per-branch acceptance using todo-6 semantics branch by branch. GREEDY gate: property test `tests/test_verify_equivalence.py`: ≥500 randomized cases — synthetic targets = random categorical distributions over vocab 50, depths 1/4/8, branchings 1/2/3 — assert DAG verifier accepted set == reference sequential verifier accepted set for EVERY branch, plus bonus-token agreement; 2 real-model cases with Qwen3-0.6B on local 4060 (DAGs of 8 nodes) asserting bit-identical accepted sequences. SAMPLING gate (Metis gap #7, required before any temp-1 number): same property equivalence for accept/reject decisions given shared RNG tapes, PLUS statistical test `tests/test_sampling_equivalence.py` — token-level χ² between DAG-verified speculative sampling and direct target sampling on 3 fixed prompts × 20k samples each, p>0.01 pre-registered. Must NOT do: no approximate acceptance, no top-k truncation during verification, no performance optimization that changes semantics (optimize later, prove equality first).
   Parallelization: Wave B | Blocked by: 6, 7 | Blocks: 9, 19, 20, 21, 22 | With: none (critical path)
   References: tree-attention prior art (reference only, Apache-2.0): Medusa `medusa/model/utils.py` (github.com/FasterDecoding/Medusa), EAGLE `eagle/model/utils.py` @cb7e084 (github.com/SafeAILab/EAGLE); concept note §11.3 (680-684); D8
@@ -178,7 +178,7 @@ Training set = {4B, 8B, 14B} × auxiliary corpora; held-out unseen = {32B, Coder
   QA scenarios: happy — property suite green; failure — mutation test: deliberately swap residual-correction order in a copy of the verifier, property suite MUST fail (record the failing output as evidence that the gate has teeth). Evidence <attemptDir>/task-8-familydraft-moe.txt
   Commit: Y | feat(verify): DAG verifier, equivalence gate green (M1)
 
-- [ ] 9. Verification/draft latency microbench + cost curve
+- [x] 9. Verification/draft latency microbench + cost curve
   What to do: `scripts/bench_micro.py`: measure on local 4060 (Qwen3-0.6B) and emit `runs/microbench/cost_curve.json`: target per-token decode ms; verification ms for DAG sizes {1,2,4,8,16,32,64}; forward-ms budget table for drafter sizes. Include RunPod variant `scripts/bench_micro_pod.py` (same JSON schema) for Qwen3-8B later. This JSON is the router's C_draft/C_verify source (concept note §5). Must NOT do: no end-to-end campaign here; no accuracy claims.
   Parallelization: Wave B/C | Blocked by: 5, 8 | Blocks: 19, 20 | With: 10
   References: concept note D:\MoE\family_draft_moe_concept.md:310-342 (§5 utility objective), 619-623 (ablation: cost-aware routing)
@@ -195,7 +195,7 @@ Training set = {4B, 8B, 14B} × auxiliary corpora; held-out unseen = {32B, Coder
   QA scenarios: happy — checksums + coverage pass; failure — corrupt one shard byte: verifier exits non-zero naming the shard; partial-shard (incomplete write) detected via length field and quarantined. Evidence <attemptDir>/task-10-familydraft-moe.txt
   Commit: Y | feat(data): multi-target trace campaign runner + manifests
 
-- [ ] 11. Oracle predictability analysis + go/no-go gate (MILESTONE 2)
+- [x] 11. Oracle predictability analysis + go/no-go gate (MILESTONE 2) [LOCAL verdict NO-GO; pivot_options.md delivered; Waves D-G held]
   What to do: implement `src/familydraft/experts/parse_state.py` v0 HERE FIRST (Metis gap #8 ordering fix — todo 16 consumes it): pure-Python deterministic structural state machine (open brackets/quotes/scopes stack, indent depth, in-fence flag, enumeration detection). Then `scripts/oracle_analysis.py`: per trace position, with oracle knowledge of the target continuation, classify recoverability by cheap mechanism class with EXACT pre-registered definitions (Metis gap #12, committed in configs/oracle_thresholds.yaml BEFORE traces exist): (a) copy-suffix = longest match of ≥4 tokens from prompt ∪ generated prefix; (b) macro/parser action = next d tokens derivable from parse_state v0 rule set (close-bracket/quote/scope, newline-indent, fence close, enumeration continuation, JSON close); (c) repetition = ≥6-token n-gram repeated from preceding 512-token window. Compute per task class: coverage % at thresholds d∈{1,2,4,6,8} expected-accepted-tokens + ORACLE-BEST EXPECTED SPEEDUP UPPER BOUND (Metis gap #5 framing: best achievable bs1-greedy speedup given perfect mechanism selection). Emit `docs/reports/oracle_report.md` + machine-readable `runs/oracle/verdict.json`. Pre-registered gate: GO iff in ≥2 of 4 task classes (code AND structured must be among them) ≥25% of positions have oracle-expected acceptance ≥1.0 token from the cheap-mechanism union AND oracle-best expected speedup ≥1.5×; per-mechanism-class secondary thresholds included for Phase-2 gating. Exit 0 = GO, exit 77 = NO-GO. NO-GO BRANCH (Metis gap #5): STOP Waves D-G; deliverable = evidence package + `docs/reports/pivot_options.md` enumerating (abandon / narrow to recoverable expert classes / switch task-class focus) with measured support for each; decision authority = user. Must NOT do: do not tune thresholds or definitions after traces exist (git ordering check proves pre-registration).
   Parallelization: Wave C | Blocked by: 10 | Blocks: 14-19 (via GO), 25 (gate) | With: 12
   References: concept note D:\MoE\family_draft_moe_concept.md:19-35 (§1 thesis), §9 Q1 (line 557); draft D5; §4.4 macro list (200-211) informs rule set
