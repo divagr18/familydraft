@@ -17,3 +17,6 @@ runs/*
 # secrets and editor
 .env
 .vscode/
+
+# agent-harness session metadata (churns every turn; not planning state)
+.omo/run-continuation/

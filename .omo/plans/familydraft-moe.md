@@ -113,7 +113,7 @@ Training set = {4B, 8B, 14B} × auxiliary corpora; held-out unseen = {32B, Coder
 > Implementation + Test = ONE todo. Never separate.
 
 ### Wave A — Foundations (M0)
-- [ ] 1. Repo + project skeleton (uv, src layout, lint, git)
+- [x] 1. Repo + project skeleton (uv, src layout, lint, git)
   What to do: `git init`; uv project pinning Python 3.11, torch (CUDA), transformers>=4.51 (Qwen3 support verified via `model_type: qwen3` configs), datasets, pytest, ruff, jsonschema. Layout: `src/familydraft/{targets,verify,draft,experts,router,eval,infra}/`, `configs/`, `scripts/`, `tests/`, `data/` + `runs/` (gitignored), `docs/`. `.gitignore` (no data/, runs/, secrets), `pyproject.toml`, README stub. Must NOT do: no CI, no extra deps, no framework code yet.
   Parallelization: Wave A | Blocked by: none | Blocks: all | With: 2, 3
   References: D:\MoE\.omo\drafts\familydraft-moe.md (Decisions D5-D8); concept note D:\MoE\family_draft_moe_concept.md:584-602 (§10.2 prototype stack)
@@ -121,7 +121,7 @@ Training set = {4B, 8B, 14B} × auxiliary corpora; held-out unseen = {32B, Coder
   QA scenarios: happy — all five commands above succeed, log to Evidence; failure — add a temp file with a syntax error under src/, `ruff check` must exit non-zero naming the file, then delete it. Evidence <attemptDir>/task-1-familydraft-moe.txt
   Commit: Y | chore(repo): bootstrap familydraft project skeleton
 
-- [ ] 2. RunPod pod spec + local hardware smoke test
+- [x] 2. RunPod pod spec + local hardware smoke test
   What to do: `docs/infra.md` — RunPod pod recipe (CUDA 12.x + torch + transformers image, network volume mounted at `/workspace`, SKUs: A100-80GB for serving/training campaigns, RTX-4090-class for cheap dev), idempotent `scripts/pod_setup.sh`; `scripts/smoke_local.py` loads Qwen/Qwen3-0.6B bf16 on the local RTX 4060 and generates 32 greedy tokens with a fixed seed, prints peak VRAM. Must NOT do: do not start paid pods; no credentials in repo (env only).
   Parallelization: Wave A | Blocked by: 1 | Blocks: 10, 13 | With: 3, 4
   References: nvidia-smi probe (RTX 4060 8GB/16GB RAM/Win10) in draft Findings; D:\MoE\.omo\drafts\familydraft-moe.md (D6); huggingface.co/Qwen/Qwen3-0.6B
@@ -129,7 +129,7 @@ Training set = {4B, 8B, 14B} × auxiliary corpora; held-out unseen = {32B, Coder
   QA scenarios: happy — smoke test completes locally; failure — run with `CUDA_VISIBLE_DEVICES=""` (CUDA forced off): script must exit non-zero with a clean message naming GPU unavailability, no traceback-driven crash. Evidence <attemptDir>/task-2-familydraft-moe.txt
   Commit: Y | feat(infra): RunPod pod spec and local smoke test
 
-- [ ] 3. Fixed evaluation-set manifest (4 task classes)
+- [x] 3. Fixed evaluation-set manifest (4 task classes)
   What to do: `scripts/build_eval_manifest.py` builds `data/eval/{mtbench,humaneval,mbpp_sanitized,gsm8k,structured}/` with exact counts: MT-Bench 80 chat prompts (FastChat canonical), HumanEval 164, MBPP sanitized subset (pinned count recorded in manifest), GSM8K test 1319, structured = 100 deterministic JSON-schema-conditioned tasks produced by the committed generator `scripts/gen_structured_set.py` (seeded schema sampling; provenance + license documented in data/eval/README.md since we construct it). Prompts rendered for the Qwen3 chat template with THINKING MODE PINNED PER CLASS (Metis gap #10): MT-Bench/HumanEval/MBPP/structured → `enable_thinking=false`; GSM8K → `enable_thinking=true` with max_new_tokens 4096 (recorded machine-readable in `configs/eval_protocol.yaml` alongside system prompts). SHA-256 manifest `data/eval/MANIFEST.json` + `scripts/verify_manifest.py`. Must NOT do: no train splits here; no hand edits after sealing (rebuild-only); no class may change thinking mode without editing the committed protocol first.
   Parallelization: Wave A | Blocked by: 1 | Blocks: 10, 21, 22 | With: 2
   References: concept note D:\MoE\family_draft_moe_concept.md:632-662 (§10.5 metrics); EAGLE eval convention (MT-Bench/HumanEval/GSM8K, temp 0 + temp 1, bs1) in draft Findings
@@ -137,7 +137,7 @@ Training set = {4B, 8B, 14B} × auxiliary corpora; held-out unseen = {32B, Coder
   QA scenarios: happy — build+verify exit 0; failure — flip one byte in a data file, `verify_manifest.py` exits non-zero naming the corrupted file. Evidence <attemptDir>/task-3-familydraft-moe.txt
   Commit: Y | feat(data): sealed evaluation manifest for 4 task classes
 
-- [ ] 4. Unified Qwen3 target wrapper with top-k logit capture
+- [x] 4. Unified Qwen3 target wrapper with top-k logit capture
   What to do: `src/familydraft/targets/wrapper.py`: `TargetModel.load(repo_id, dtype="bf16")`, `.generate_greedy(prompt_ids, max_new_tokens)`, `.generate_sample(prompt_ids, temp, seed)`, `.topk_logits(ids, k)` returning (token_ids, logits, ranks); trace schema documented in `docs/trace_format.md` (JSONL: step, chosen token, top-k snapshot, latency). Supported repos pinned in `configs/targets.yaml`: Qwen3-4B/8B/14B/32B, Qwen3-30B-A3B, Qwen3-Coder-30B-A3B, plus Qwen3-0.6B for local tests. Must NOT do: no quantization; no logits-altering optimizations (e.g., no speculative tricks inside the wrapper); device_map="auto" only.
   Parallelization: Wave A | Blocked by: 1 | Blocks: 6, 8, 10, 15 | With: 2, 3, 5
   References: vocab 151936 verified configs in draft Findings; huggingface.co/Qwen/Qwen3-8B/raw/main/config.json; transformers generation docs (huggingface.co/docs/transformers/generation_strategies)
@@ -145,7 +145,7 @@ Training set = {4B, 8B, 14B} × auxiliary corpora; held-out unseen = {32B, Coder
   QA scenarios: happy — pinned-output test passes; failure — load repo id "Qwen/does-not-exist": wrapper raises with message naming the repo id (no generic traceback), asserted in test. Evidence <attemptDir>/task-4-familydraft-moe.txt
   Commit: Y | feat(targets): unified Qwen3 wrapper with top-k logit capture
 
-- [ ] 5. Deterministic run logger + timing primitives
+- [x] 5. Deterministic run logger + timing primitives
   What to do: `src/familydraft/infra/{metrics,run}.py`: JSONL run logger with schema (run_id, git_sha, config_sha256, seed, event{type, ms, payload}); CUDA-event timing helper (torch.cuda.Event with explicit torch.cuda.synchronize — never wall-clock around async kernels, Metis gap #21); config-fingerprint util (sha256 over canonicalized JSON); global seed setter (torch/cuda/python/random) incl. attention backend flag pinning. Schema enforced by jsonschema in `configs/run_event.schema.json`. Must NOT do: no dashboards, no wandb, no network logging.
   Parallelization: Wave A | Blocked by: 1 | Blocks: 9, 20, 21 | With: 4
   References: concept note D:\MoE\family_draft_moe_concept.md:632-662 (§10.5 supporting metrics); D7 (standalone harness)

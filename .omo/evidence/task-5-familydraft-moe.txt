@@ -1,0 +1,346 @@
+﻿TASK 5 EVIDENCE - deterministic run logger + timing primitives (familydraft-moe)
+Repo: D:\MoE  Branch: main  Base commit: 3379bf5
+Env: python 3.12.9 | torch 2.13.0+cpu (cuda_available=False) | jsonschema 4.26.0 | numpy 2.5.1
+Concept-note sha256 probe (baseline): AEB1FC915374663940D8F5E4FA092AA0359A85E2C6B1E4CD2E7DC34C1FCF0581 (matches required value)
+
+--- [1] FAILING-FIRST: uv run pytest tests/test_metrics.py (BEFORE implementation) ---
+CMD: uv run pytest tests/test_metrics.py
+EXIT_CODE: 2
+OUTPUT:
+============================= test session starts =============================
+platform win32 -- Python 3.12.9, pytest-9.1.1, pluggy-1.6.0
+rootdir: D:\MoE
+configfile: pyproject.toml
+plugins: anyio-4.14.2
+collected 0 items / 1 error
+
+=================================== ERRORS ====================================
+___________________ ERROR collecting tests/test_metrics.py ____________________
+ImportError while importing test module 'D:\MoE\tests\test_metrics.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\Keshav\AppData\Roaming\uv\python\cpython-3.12.9-windows-x86_64-none\Lib\importlib\__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\test_metrics.py:12: in <module>
+    from familydraft.infra.metrics import (
+E   ModuleNotFoundError: No module named 'familydraft.infra.metrics'
+=========================== short test summary info ===========================
+ERROR tests/test_metrics.py
+!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+============================== 1 error in 1.97s ===============================
+
+
+--- [2] uv run pytest tests/test_metrics.py (run 1 of 2, AFTER implementation) ---
+CMD: uv run pytest tests/test_metrics.py -v
+EXIT_CODE: 0
+OUTPUT:
+============================= test session starts =============================
+platform win32 -- Python 3.12.9, pytest-9.1.1, pluggy-1.6.0 -- D:\MoE\.venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: D:\MoE
+configfile: pyproject.toml
+plugins: anyio-4.14.2
+collecting ... collected 19 items
+
+tests/test_metrics.py::TestRunEventSchema::test_valid_record_passes PASSED [  5%]
+tests/test_metrics.py::TestRunEventSchema::test_rejects_event_missing_type PASSED [ 10%]
+tests/test_metrics.py::TestRunEventSchema::test_rejects_negative_ms PASSED [ 15%]
+tests/test_metrics.py::TestRunEventSchema::test_rejects_missing_run_id PASSED [ 21%]
+tests/test_metrics.py::TestRunEventSchema::test_rejects_missing_git_sha PASSED [ 26%]
+tests/test_metrics.py::TestConfigFingerprint::test_identical_for_key_order_permuted_equal_configs PASSED [ 31%]
+tests/test_metrics.py::TestConfigFingerprint::test_sensitive_to_value_change PASSED [ 36%]
+tests/test_metrics.py::TestConfigFingerprint::test_is_sha256_hex PASSED  [ 42%]
+tests/test_metrics.py::TestSetGlobalSeeds::test_torch_and_numpy_draws_reproducible PASSED [ 47%]
+tests/test_metrics.py::TestSetGlobalSeeds::test_different_seeds_differ PASSED [ 52%]
+tests/test_metrics.py::TestSetGlobalSeeds::test_returns_pinned_attention_backend_flags PASSED [ 57%]
+tests/test_metrics.py::TestCudaTimer::test_measures_and_reports_backend PASSED [ 63%]
+tests/test_metrics.py::TestSeededDeterminism::test_two_seeded_runs_identical_event_type_sequences PASSED [ 68%]
+tests/test_metrics.py::TestRunLogger::test_round_trip_jsonl_validates PASSED [ 73%]
+tests/test_metrics.py::TestRunLogger::test_rejects_missing_type PASSED   [ 78%]
+tests/test_metrics.py::TestRunLogger::test_rejects_negative_ms PASSED    [ 84%]
+tests/test_metrics.py::TestRunLogger::test_rejects_bool_ms PASSED        [ 89%]
+tests/test_metrics.py::TestRunLogger::test_invalid_event_writes_nothing PASSED [ 94%]
+tests/test_metrics.py::TestRunLogger::test_constructor_rejects_non_hex_git_sha PASSED [100%]
+
+============================= 19 passed in 2.08s ==============================
+
+
+--- [3] uv run pytest tests/test_metrics.py (run 2 of 2, consecutive flaky guard) ---
+CMD: uv run pytest tests/test_metrics.py
+EXIT_CODE: 0
+OUTPUT:
+============================= test session starts =============================
+platform win32 -- Python 3.12.9, pytest-9.1.1, pluggy-1.6.0
+rootdir: D:\MoE
+configfile: pyproject.toml
+plugins: anyio-4.14.2
+collected 19 items
+
+tests\test_metrics.py ...................                                [100%]
+
+============================= 19 passed in 2.37s ==============================
+
+
+--- [4] uv run ruff check src tests ---
+CMD: uv run ruff check src tests
+EXIT_CODE: 1
+OUTPUT:
+E731 Do not assign a `lambda` expression, use a `def`
+   --> tests\test_metrics.py:149:9
+    |
+147 |         assert [e["type"] for e in events_a] == ["init", *["matmul_step"] * 4]
+148 |         # seeded RNG draws inside the timed loop reproduce exactly (ms excluded: nondeterministic)
+149 |         strip = lambda e: {"type": e["type"], "payload": e["payload"]}
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+150 |         assert [strip(e) for e in events_a] == [strip(e) for e in events_b]
+    |
+help: Rewrite `strip` as a `def`
+
+Found 1 error.
+No fixes available (1 hidden fix can be enabled with the `--unsafe-fixes` option).
+
+
+--- [5] ruff fix: E731 lambda->named comprehensions in tests/test_metrics.py; re-verify ---
+CMD: uv run ruff check src tests
+EXIT_CODE: 1
+OUTPUT:
+uv :    Building familydraft @ file:///D:/MoE
+At line:3 char:7
++ $ro = uv run ruff check src tests 2>&1 | Out-String; $rec = $LASTEXIT ...
++       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (   Building familydraft @ file:///D:/MoE:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+      Built familydraft @ file:///D:/MoE
+Uninstalled 1 package in 2ms
+warning: Failed to hardlink files; falling back to full copy. This may lead to degraded performance.
+         If the cache and target directories are on different filesystems, hardlinking may not be supported.
+         If this is intentional, set `export UV_LINK_MODE=copy` or use `--link-mode=copy` to suppress this warning.
+Installed 1 package in 9ms
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests\test_target_wrapper.py:8:1
+   |
+ 6 |   """
+ 7 |
+ 8 | / import hashlib
+ 9 | | import json
+10 | | import os
+11 | | from pathlib import Path
+12 | |
+13 | | import pytest
+14 | | import torch
+15 | |
+16 | | from familydraft.targets.wrapper import (
+17 | |     TargetLoadError,
+18 | |     TargetModel,
+19 | |     TopKSnapshot,
+20 | |     parse_dtype,
+21 | |     topk_snapshot,
+22 | | )
+   | |_^
+23 |
+24 |   BOGUS_REPO_ID = "familydraft-ci/no-such-model-zzz-0000"  # cannot exist
+   |
+help: Organize imports
+   |
+14 | import torch
+   -
+15 | from familydraft.targets.wrapper import (
+   |
+
+F401 [*] `familydraft.targets.wrapper.TopKSnapshot` imported but unused
+  --> tests\test_target_wrapper.py:19:5
+   |
+17 |     TargetLoadError,
+18 |     TargetModel,
+19 |     TopKSnapshot,
+   |     ^^^^^^^^^^^^
+20 |     parse_dtype,
+21 |     topk_snapshot,
+   |
+help: Remove unused import: `familydraft.targets.wrapper.TopKSnapshot`
+   |
+18 |     TargetModel,
+   -     TopKSnapshot,
+19 |     parse_dtype,
+   |
+
+Found 2 errors.
+[*] 2 fixable with the `--fix` option.
+
+
+--- [6] CMD: uv run pytest tests/test_metrics.py (post-fix run 1) ---
+EXIT_CODE: 0
+OUTPUT:
+============================= test session starts =============================
+platform win32 -- Python 3.12.9, pytest-9.1.1, pluggy-1.6.0
+rootdir: D:\MoE
+configfile: pyproject.toml
+plugins: anyio-4.14.2
+collected 19 items
+
+tests\test_metrics.py ...................                                [100%]
+
+============================= 19 passed in 1.93s ==============================
+
+
+--- [7] CMD: uv run pytest tests/test_metrics.py (post-fix run 2) ---
+EXIT_CODE: 0
+OUTPUT:
+============================= test session starts =============================
+platform win32 -- Python 3.12.9, pytest-9.1.1, pluggy-1.6.0
+rootdir: D:\MoE
+configfile: pyproject.toml
+plugins: anyio-4.14.2
+collected 19 items
+
+tests\test_metrics.py ...................                                [100%]
+
+============================= 19 passed in 1.94s ==============================
+
+
+--- [8] ruff scope isolation: remaining 2 findings are in tests/test_target_wrapper.py (todo-4 worker's file, NOT mine; untouched by this task). Ruff on MY files only: ---
+CMD: uv run ruff check src/familydraft/infra/metrics.py src/familydraft/infra/run.py tests/test_metrics.py configs/run_event.schema.json
+EXIT_CODE: 1
+OUTPUT:
+F821 Undefined name `false`
+  --> configs\run_event.schema.json:8:27
+   |
+ 6 |   "type": "object",
+ 7 |   "required": ["run_id", "git_sha", "events"],
+ 8 |   "additionalProperties": false,
+   |                           ^^^^^
+ 9 |   "properties": {
+10 |     "run_id": {
+   |
+
+F821 Undefined name `false`
+  --> configs\run_event.schema.json:42:31
+   |
+40 |       "type": "object",
+41 |       "required": ["type", "ms"],
+42 |       "additionalProperties": false,
+   |                               ^^^^^
+43 |       "properties": {
+44 |         "type": {
+   |
+
+Found 2 errors.
+
+
+--- [9] correction: JSON schema is not a ruff target (explicit-path parse artifact of step 8). Ruff on MY python files only: ---
+CMD: uv run ruff check src/familydraft/infra/metrics.py src/familydraft/infra/run.py tests/test_metrics.py
+EXIT_CODE: 0
+OUTPUT:
+All checks passed!
+
+
+--- [10] pre-commit dirty_worktree probe ---
+CMD: Get-FileHash family_draft_moe_concept.md -Algorithm SHA256
+EXIT_CODE: 0
+OUTPUT: AEB1FC915374663940D8F5E4FA092AA0359A85E2C6B1E4CD2E7DC34C1FCF0581
+
+--- [11] stage EXPLICIT paths only ---
+CMD: git add -- configs/run_event.schema.json
+src/familydraft/infra/metrics.py
+src/familydraft/infra/run.py
+tests/test_metrics.py
+
+
+--- RE-VERIFICATION SESSION (2026-08-07) ---
+
+--- [V1] uv run pytest tests/test_metrics.py (re-verification run) ---
+CMD: uv run pytest tests/test_metrics.py -v
+EXIT_CODE: 0 (19 passed in 2.81s)
+
+--- [V2] uv run ruff check src/familydraft/infra/ tests/test_metrics.py ---
+CMD: uv run ruff check src/familydraft/infra/ tests/test_metrics.py
+EXIT_CODE: 0 (All checks passed!)
+
+--- [V3] concept-note sha256 post-commit probe ---
+CMD: Get-FileHash family_draft_moe_concept.md -Algorithm SHA256
+EXIT_CODE: 0
+OUTPUT: AEB1FC915374663940D8F5E4FA092AA0359A85E2C6B1E4CD2E7DC34C1FCF0581 (MATCHES required value)
+
+--- [V4] ruff scope note ---
+uv run ruff check src tests reports 1 error in tests/test_target_wrapper.py (F401 TopKSnapshot unused),
+which belongs to todo-4 worker's file. My files (metrics.py, run.py, test_metrics.py) are all clean.
+This is recorded as acceptable: MUST NOT DO forbids editing other workers' files.
+
+--- [V5] dirty_worktree probe ---
+git diff --name-only HEAD shows: .omo/* files + pyproject.toml (modified by other workers/infra)
+My 4 committed files show NO delta vs HEAD. Working tree clean for my scope.
+
+EXIT_CODE: 128 (attempts: 1)
+OUTPUT:
+git.exe : warning: could not open directory 'configs/run_event.schema.json src/familydraft/infra/metrics.py 
+src/familydraft/infra/run.py tests/': No such file or directory
+At line:5 char:16
++         $out = & git -C D:\MoE @GitArgs 2>&1 | Out-String
++                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (warning: could ...le or directory:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+fatal: pathspec 'configs/run_event.schema.json src/familydraft/infra/metrics.py src/familydraft/infra/run.py 
+tests/test_metrics.py' did not match any files
+
+CMD: git diff --cached --name-only
+EXIT_CODE: 0
+OUTPUT:
+
+
+--- [11-retry] stage EXPLICIT paths (flat argv) ---
+CMD: git add -- <4 explicit paths>
+EXIT_CODE: 0 (attempts: 1)
+OUTPUT:
+git.exe : warning: in the working copy of 'configs/run_event.schema.json', LF will be replaced by CRLF the next time 
+Git touches it
+At line:5 char:16
++         $out = & git -C D:\MoE @GitArgs 2>&1 | Out-String
++                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (warning: in the... Git touches it:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+warning: in the working copy of 'src/familydraft/infra/metrics.py', LF will be replaced by CRLF the next time Git 
+touches it
+warning: in the working copy of 'src/familydraft/infra/run.py', LF will be replaced by CRLF the next time Git touches 
+it
+warning: in the working copy of 'tests/test_metrics.py', LF will be replaced by CRLF the next time Git touches it
+
+CMD: git diff --cached --name-only
+EXIT_CODE: 0
+OUTPUT:
+configs/run_event.schema.json
+src/familydraft/infra/metrics.py
+src/familydraft/infra/run.py
+tests/test_metrics.py
+
+
+--- [12] commit ---
+CMD: git commit -m 'feat(infra): deterministic run logger and timing primitives'
+EXIT_CODE: 0 (attempts: 1)
+OUTPUT:
+[main 9567664] feat(infra): deterministic run logger and timing primitives
+ 4 files changed, 457 insertions(+)
+ create mode 100644 configs/run_event.schema.json
+ create mode 100644 src/familydraft/infra/metrics.py
+ create mode 100644 src/familydraft/infra/run.py
+ create mode 100644 tests/test_metrics.py
+
+CMD: git log --oneline -2
+EXIT_CODE: 0
+OUTPUT:
+9567664 feat(infra): deterministic run logger and timing primitives
+3379bf5 chore(repo): bootstrap familydraft project skeleton
+
+CMD: git show --stat --name-only --format='%H %s' HEAD
+EXIT_CODE: 0
+OUTPUT:
+9567664762176babc33d14035d75832da05ef8ce feat(infra): deterministic run logger and timing primitives
+
+configs/run_event.schema.json
+src/familydraft/infra/metrics.py
+src/familydraft/infra/run.py
+tests/test_metrics.py
+
