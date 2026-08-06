@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "configs/run_event.schema.json",
+  "title": "FamilyDraft run record",
+  "description": "One JSONL line of a run log: run identity plus one or more timed events.",
+  "type": "object",
+  "required": ["run_id", "git_sha", "events"],
+  "additionalProperties": false,
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Unique identifier of the run."
+    },
+    "git_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{7,40}$",
+      "description": "Commit SHA the run was executed from."
+    },
+    "config_sha256": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "config_fingerprint() of the run config."
+    },
+    "seed": {
+      "type": ["integer", "null"],
+      "description": "Global RNG seed pinned for the run, or null if unseeded."
+    },
+    "backend_flags": {
+      "type": ["object", "null"],
+      "description": "Flag values returned by set_global_seeds() (attention backends, cudnn)."
+    },
+    "events": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/event" }
+    }
+  },
+  "$defs": {
+    "event": {
+      "type": "object",
+      "required": ["type", "ms"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Event kind, e.g. decode_step, verify_dag."
+        },
+        "ms": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Duration in milliseconds; must be finite and non-negative."
+        },
+        "payload": {
+          "type": ["object", "null"],
+          "description": "Free-form JSON object of event details."
+        }
+      }
+    }
+  }
+}
