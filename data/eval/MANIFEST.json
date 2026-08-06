@@ -1,0 +1,116 @@
+{
+  "format_version": "1.0",
+  "description": "Sealed evaluation manifest for FamilyDraftMoE — 4 task classes, 5 datasets.",
+  "tokenizer": {
+    "model_id": "Qwen/Qwen3-0.6B",
+    "vocab_size": 151643
+  },
+  "thinking_mode_table": {
+    "mtbench": {
+      "enable_thinking": false,
+      "max_new_tokens": 2048,
+      "system_prompt": null
+    },
+    "humaneval": {
+      "enable_thinking": false,
+      "max_new_tokens": 2048,
+      "system_prompt": null
+    },
+    "mbpp_sanitized": {
+      "enable_thinking": false,
+      "max_new_tokens": 2048,
+      "system_prompt": null
+    },
+    "gsm8k": {
+      "enable_thinking": true,
+      "max_new_tokens": 4096,
+      "system_prompt": null
+    },
+    "structured": {
+      "enable_thinking": false,
+      "max_new_tokens": 2048,
+      "system_prompt": null
+    }
+  },
+  "round_trip_validation": {
+    "status": "pass",
+    "totals_per_dataset": {
+      "mtbench": 80,
+      "humaneval": 164,
+      "mbpp_sanitized": 378,
+      "gsm8k": 1319,
+      "structured": 100
+    },
+    "total_prompts": 2041
+  },
+  "datasets": {
+    "mtbench": {
+      "data_file": "mtbench/items.jsonl",
+      "item_count": 80,
+      "sha256": "4e591709cf44ff10e64322014d9a8d7de5b059b54e4ece421508c89915b39e80",
+      "source": {
+        "type": "url",
+        "url": "https://raw.githubusercontent.com/lm-sys/FastChat/main/fastchat/llm_judge/data/mt_bench/question.jsonl",
+        "source_file_sha256": "119565adbab82227089cefdb44c8d7e2cf04dc0a0ec233634c82e7d4e2a944f7"
+      },
+      "thinking_mode": {
+        "enable_thinking": false
+      }
+    },
+    "humaneval": {
+      "data_file": "humaneval/items.jsonl",
+      "item_count": 164,
+      "sha256": "7edd7fe543d728bad8fd5727c9c31828d9b48d843be60ab9a9152ad1e50518d8",
+      "source": {
+        "type": "hf_dataset",
+        "dataset_id": "openai/openai_humaneval",
+        "split": "test",
+        "version": "unknown"
+      },
+      "thinking_mode": {
+        "enable_thinking": false
+      }
+    },
+    "mbpp_sanitized": {
+      "data_file": "mbpp_sanitized/items.jsonl",
+      "item_count": 378,
+      "sha256": "7832c1b7fa352c316f19f96c5e253f7dca644abf5c303b9e8681aad7d71edf78",
+      "source": {
+        "type": "hf_dataset",
+        "dataset_id": "evalplus/mbppplus",
+        "split": "test"
+      },
+      "thinking_mode": {
+        "enable_thinking": false
+      }
+    },
+    "gsm8k": {
+      "data_file": "gsm8k/items.jsonl",
+      "item_count": 1319,
+      "sha256": "01a881b4f4b65209ba2348fb3ac59407a2617c120da19a99fd785c3f2dc61261",
+      "source": {
+        "type": "hf_dataset",
+        "dataset_id": "openai/gsm8k",
+        "config": "main",
+        "split": "test"
+      },
+      "thinking_mode": {
+        "enable_thinking": true
+      }
+    },
+    "structured": {
+      "data_file": "structured/items.jsonl",
+      "item_count": 100,
+      "sha256": "c9b7fe99f7403ebc1dcfca88ca8a585c02c30a3edae66ccdfc56976a440e93a0",
+      "source": {
+        "type": "generated",
+        "generator": "scripts/gen_structured_set.py",
+        "seed": 42,
+        "description": "Own-constructed JSON Schema archetypes; no external data."
+      },
+      "thinking_mode": {
+        "enable_thinking": false
+      }
+    }
+  }
+}

@@ -1,0 +1,32 @@
+# Evaluation protocol configuration for Qwen3 chat template.
+#
+# thinking_mode controls whether enable_thinking is passed to the
+# Qwen3 tokenizer's apply_chat_template (>=transformers 4.51).
+#
+# system_prompt: null means no system message is prepended.
+
+eval_classes:
+  mtbench:
+    enable_thinking: false
+    max_new_tokens: 2048
+    system_prompt: null
+
+  humaneval:
+    enable_thinking: false
+    max_new_tokens: 2048
+    system_prompt: null
+
+  mbpp_sanitized:
+    enable_thinking: false
+    max_new_tokens: 2048
+    system_prompt: null
+
+  structured:
+    enable_thinking: false
+    max_new_tokens: 2048
+    system_prompt: null
+
+  gsm8k:
+    enable_thinking: true
+    max_new_tokens: 4096
+    system_prompt: null
