@@ -421,7 +421,7 @@ def main() -> int:
     # Write manifest
     manifest = {
         "format_version": "1.0",
-        "description": "Sealed evaluation manifest for FamilyDraftMoE — 4 task classes, 5 datasets.",
+        "description": "Sealed evaluation manifest for FamilyDraftMoE: 4 task classes.",
         "tokenizer": {
             "model_id": "Qwen/Qwen3-0.6B",
             "vocab_size": tokenizer.vocab_size,

@@ -90,7 +90,10 @@ SCHEMA_ARCHETYPES: list[dict] = [
         "properties": {
             "location": {"type": "string"},
             "temperature_c": {"type": "number"},
-            "conditions": {"type": "string", "enum": ["sunny", "cloudy", "rainy", "snowy", "windy"]},
+            "conditions": {
+                "type": "string",
+                "enum": ["sunny", "cloudy", "rainy", "snowy", "windy"],
+            },
             "humidity_pct": {"type": "integer", "minimum": 0, "maximum": 100},
         },
         "required": ["location", "temperature_c", "conditions"],
