@@ -1,0 +1,203 @@
+TASK 1 EVIDENCE — familydraft-moe: repo + project skeleton bootstrap
+Executor: Sisyphus-Junior (opencode agent) — all commands run in D:\MoE, PowerShell 5.1, 2026-08-06 (IST)
+Tools: git 2.50.0.windows.2 | uv 0.6.11 | system python 3.11.8 (uv selected managed CPython 3.12.9, satisfies ">=3.11,<3.13")
+
+================================================================================
+STEP 1 — PRE-STATE (failing-first proof for greenfield)
+================================================================================
+$ Test-Path -LiteralPath "D:\MoE\pyproject.toml"
+False
+$ Test-Path -LiteralPath "D:\MoE\src\familydraft"
+False
+$ Test-Path -LiteralPath "D:\MoE\.git"
+False
+Timestamp: 2026-08-06T23:54:29+05:30
+Pre-existing contents of D:\MoE at start: .codegraph/ (agent tooling index), .omo/ (planning state), family_draft_moe_concept.md
+D: drive free space before install: 41922183168 bytes (~39 GB) — sufficient for torch.
+
+================================================================================
+STEP 2 — git init (default branch main)
+================================================================================
+$ git init -b main
+Initialized empty Git repository in D:/MoE/.git/
+EXIT=0
+$ git branch --show-current
+main
+EXIT=0
+Note: global init.defaultBranch=master, so -b main was passed explicitly.
+git identity already configured globally (user.name=Divyansh Agrawal, user.email=keshav.agr2007@gmail.com); no config was modified.
+
+================================================================================
+STEP 3-6 — scaffold files created
+================================================================================
+Created via file writes (Write tool) — exact contents as committed, summarized:
+- pyproject.toml: hatchling build backend; name=familydraft, version=0.1.0;
+  requires-python = ">=3.11,<3.13"; dependencies = torch, transformers>=4.51, datasets, jsonschema;
+  [dependency-groups] dev = pytest, ruff; [tool.hatch.build.targets.wheel] packages = ["src/familydraft"];
+  [tool.pytest.ini_options] testpaths = ["tests"];
+  [tool.ruff] line-length = 100, target-version = "py311"; [tool.ruff.lint] select = ["E","F","I"]
+- .gitignore: __pycache__/, *.py[cod], .venv/, dist/, build/, .ruff_cache/, .pytest_cache/, *.egg-info/,
+  data/* + !data/.gitkeep, runs/* + !runs/.gitkeep, .env, .vscode/  (.omo/ deliberately NOT ignored)
+- README.md: title FamilyDraftMoE, one paragraph, Plan pointer line to .omo/plans/familydraft-moe.md
+- src/familydraft/__init__.py and src/familydraft/{targets,verify,draft,experts,router,eval,infra}/__init__.py (8 empty 0-byte files)
+- configs/.gitkeep, scripts/.gitkeep, tests/.gitkeep, data/.gitkeep, runs/.gitkeep, docs/.gitkeep
+
+$ New-Item (directories + empty files as listed above)
+EXIT=0 (cmdlets succeeded; full resulting tree verified, see listing)
+
+Resulting project tree (Get-ChildItem -Recurse, excluding .git/.omo/.codegraph):
+D:\MoE\.gitignore
+D:\MoE\family_draft_moe_concept.md
+D:\MoE\pyproject.toml
+D:\MoE\README.md
+D:\MoE\configs\.gitkeep
+D:\MoE\data\.gitkeep
+D:\MoE\docs\.gitkeep
+D:\MoE\runs\.gitkeep
+D:\MoE\scripts\.gitkeep
+D:\MoE\src\familydraft\__init__.py
+D:\MoE\src\familydraft\draft\__init__.py
+D:\MoE\src\familydraft\eval\__init__.py
+D:\MoE\src\familydraft\experts\__init__.py
+D:\MoE\src\familydraft\infra\__init__.py
+D:\MoE\src\familydraft\router\__init__.py
+D:\MoE\src\familydraft\targets\__init__.py
+D:\MoE\src\familydraft\verify\__init__.py
+D:\MoE\tests\.gitkeep
+(+ empty dirs configs/, data/, docs/, runs/, scripts/, tests/, src/familydraft/*)
+
+Local-exclude note: ".codegraph/" (0.16 MB, 4 files — this agent session's code-index tool state)
+was added to .git/info/exclude (repo-local, untracked) instead of .gitignore, so that the
+committed .gitignore matches the spec exactly while the tool index stays out of the initial snapshot.
+
+================================================================================
+STEP 7 — uv sync (large install: torch)
+================================================================================
+$ uv sync
+UV_SYNC_START=2026-08-06T23:58:27+05:30
+Using CPython 3.12.9
+Creating virtual environment at: .venv
+Resolved 84 packages in 942ms
+Building familydraft @ file:///D:/MoE
+Downloaded: transformers (11.1MiB), torch (116.4MiB), ruff (11.4MiB), hf-xet (3.8MiB), pandas (9.4MiB), pyarrow (26.7MiB)
+Built familydraft @ file:///D:/MoE
+Prepared 27 packages in 29.80s
+warning: Failed to hardlink files; falling back to full copy. (cache/target on different filesystems; cosmetic)
+Installed 64 packages in 6.82s
+Key pins: torch==2.13.0 | transformers==5.14.1 | datasets==5.0.1 | jsonschema==4.26.0 | pytest==9.1.1 | ruff==0.16.1 | familydraft==0.1.0 (editable, from file:///D:/MoE)
+UV_SYNC_EXIT=0
+UV_SYNC_DURATION=38.5s   (well under the 25-minute note threshold; fast mirror/network)
+Note: PowerShell 5.1 renders uv's stderr progress as "NativeCommandError" console noise;
+it is cosmetic — the captured exit codes below are authoritative.
+
+================================================================================
+STEP 8 a-d — VERIFICATION (runtime-captured)
+================================================================================
+(a) $ uv sync
+Resolved 84 packages in 1ms
+Audited 64 packages in 0.41ms
+EXIT_A=0   (expected 0) PASS
+
+(b) $ uv run python -c "import familydraft; print(familydraft.__name__)"
+familydraft
+EXIT_B=0   (expected 0, printed exactly "familydraft") PASS
+
+(c) $ uv run ruff check src tests
+All checks passed!
+EXIT_C=0   (expected 0) PASS
+
+(d) $ uv run pytest
+============================= test session starts =============================
+platform win32 -- Python 3.12.9, pytest-9.1.1, pluggy-1.6.0
+rootdir: D:\MoE
+configfile: pyproject.toml
+testpaths: tests
+plugins: anyio-4.14.2
+collected 0 items
+============================ no tests ran in 0.02s ============================
+EXIT_D=5   (expected 5 = no tests collected on greenfield) PASS
+
+================================================================================
+STEP 8 e-f — VERIFICATION (post-commit, runtime-captured)
+================================================================================
+Pre-commit staging check:
+$ git add -A
+EXIT_ADD=0
+$ git diff --cached --name-status
+29 files staged (A): .gitignore, .omo/boulder.json, .omo/drafts/familydraft-moe.md,
+.omo/drafts/familydraft-moe.state.bak.md, .omo/evidence/task-1-familydraft-moe.txt,
+.omo/plans/familydraft-moe.md, .omo/run-continuation/ses_*.json (x4),
+.omo/start-work/ledger.jsonl, README.md, configs/.gitkeep, data/.gitkeep, docs/.gitkeep,
+family_draft_moe_concept.md, pyproject.toml, runs/.gitkeep, scripts/.gitkeep,
+src/familydraft/__init__.py + 7 subpackage __init__.py, tests/.gitkeep, uv.lock
+Grep of staged list for ".codegraph|.venv": no matches (correctly excluded).
+
+$ git commit -m "chore(repo): bootstrap familydraft project skeleton"
+[main (root-commit) 407331e] chore(repo): bootstrap familydraft project skeleton
+ 29 files changed, 3113 insertions(+)
+EXIT_COMMIT=0
+
+(e) $ git log --oneline -1
+407331e chore(repo): bootstrap familydraft project skeleton
+EXIT_E=0   (expected: shows the bootstrap commit) PASS
+
+$ git rev-list --count HEAD
+1   (exactly one commit in the repository)
+
+(f) $ git status --porcelain
+(empty output — 0 lines)
+EXIT_F=0   (expected: clean tree after commit) PASS
+
+================================================================================
+STEP 9 — ADVERSARIAL PROBES (runtime-captured)
+================================================================================
+dirty_worktree:
+$ Get-FileHash -Algorithm SHA256 "D:\MoE\family_draft_moe_concept.md"
+Algorithm : SHA256
+Hash      : AEB1FC915374663940D8F5E4FA092AA0359A85E2C6B1E4CD2E7DC34C1FCF0581
+Path      : D:\MoE\family_draft_moe_concept.md
+ASSERT: hash equals expected AEB1FC915374663940D8F5E4FA092AA0359A85E2C6B1E4CD2E7DC34C1FCF0581
+→ PASS (concept note untouched)
+
+$ Get-ChildItem "D:\MoE\.omo\plans" -Force
+familydraft-moe.md   71760 bytes   LastWriteTime 06-08-2026 23:45:15 (pre-task; task began 23:54)
+$ Get-ChildItem "D:\MoE\.omo\drafts" -Force
+familydraft-moe.md             9385 bytes   LastWriteTime 06-08-2026 23:45:56
+familydraft-moe.state.bak.md   8200 bytes   LastWriteTime 06-08-2026 23:15:08
+ASSERT: .omo\plans and .omo\drafts untouched (same files, pre-task timestamps; the only new
+item under .omo is .omo\evidence\task-1-familydraft-moe.txt, created per instructions) → PASS
+
+misleading_success_output: every PASS above carries the literal command, its runtime-captured
+output and exit code, exactly as emitted by the shell (no re-typed results).
+
+long_commands: the largest step (uv sync, torch==2.13.0 wheel 116.4 MiB) took 38.5 s —
+well below the 25-minute note threshold; duration recorded in STEP 7.
+
+Not-applicable classes (one line each):
+- malformed_input: N/A — no input parsing built in this scaffold todo.
+- prompt_injection: N/A — no external text consumed as instructions.
+- cancel_resume: N/A — single-shot scaffold, executed once to completion.
+- stale_state: N/A — no cache/state produced beyond the git repo + uv artifacts.
+- flaky_tests: N/A — no tests exist yet (pytest exit 5 is the expected greenfield outcome).
+- repeated_interruptions: N/A — single-shot execution, no interruptions occurred.
+
+================================================================================
+STEP 10 — CLEANUP RECEIPT + EVIDENCE FOLD-IN (self-reference resolution)
+================================================================================
+Cleanup receipt: no processes left running (uv sync / git / ruff / pytest all terminated);
+no temp files created outside D:\MoE; the only artifacts produced are inside D:\MoE
+(project tree, .venv/, uv.lock, .git/, this evidence file).
+
+This evidence file must record commands (e),(f) that only exist after the bootstrap commit,
+while the deliverable requires exactly ONE commit and a clean tree. Resolution: this final
+section was appended, then the file was folded into the SAME bootstrap commit via
+`git commit --amend --no-edit` (message preserved verbatim; commit count stays 1).
+The amend necessarily rewrites the hash: 407331e (recorded above at step e) is the
+pre-amend bootstrap commit; final HEAD is the amended commit with identical message and
+tree plus this evidence tail. Final state verifiable with:
+  git log --oneline -1       → "chore(repo): bootstrap familydraft project skeleton"
+  git rev-list --count HEAD  → 1
+  git status --porcelain     → empty
+
+$ git add -A ; git commit --amend --no-edit
+(executed immediately after this file content was finalized)

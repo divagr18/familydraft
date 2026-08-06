@@ -1,0 +1,19 @@
+# Python junk
+__pycache__/
+*.py[cod]
+.venv/
+dist/
+build/
+.ruff_cache/
+.pytest_cache/
+*.egg-info/
+
+# data/ and runs/ artifacts (keep the directory markers)
+data/*
+!data/.gitkeep
+runs/*
+!runs/.gitkeep
+
+# secrets and editor
+.env
+.vscode/

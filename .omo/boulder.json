@@ -1,0 +1,14 @@
+{
+  "schema_version": 2,
+  "active_work_id": "familydraft-moe",
+  "works": {
+    "familydraft-moe": {
+      "work_id": "familydraft-moe",
+      "active_plan": ".omo/plans/familydraft-moe.md",
+      "plan_name": "familydraft-moe",
+      "session_ids": ["codex:ses_027eb3d5dffeyfDw6mZCDrdjZd"],
+      "status": "active",
+      "worktree_path": null
+    }
+  }
+}
