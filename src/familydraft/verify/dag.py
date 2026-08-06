@@ -122,6 +122,25 @@ class CandidateDag:
             queue.extend(sorted(self.children(nid).values()))
         return out
 
+    def branches(self) -> list[tuple[int, ...]]:
+        """Maximal root-to-leaf paths in deterministic order.
+
+        DFS with children visited in ascending token order, so seeded
+        per-branch processing (e.g. RNG tapes) is reproducible.
+        """
+        out: list[tuple[int, ...]] = []
+
+        def walk(node: int, prefix: list[int]) -> None:
+            kids = self.children(node)
+            if not kids and node != 0:
+                out.append(tuple(prefix))
+                return
+            for tok in sorted(kids):
+                walk(kids[tok], prefix + [tok])
+
+        walk(0, [])
+        return out
+
     def prune_to_budget(self, max_nodes: int) -> None:
         """Trim to max_nodes by repeatedly removing the weakest leaf.
 

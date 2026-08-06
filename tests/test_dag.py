@@ -37,6 +37,7 @@ def test_concept_note_merge_golden() -> None:
     assert sorted(dag.children(branch_b).keys()) == [4]
     assert dag.node(branch_b).support == 1
     assert dag.node(dag.children(branch_b)[4]).support == 1
+    assert dag.branches() == [(1, 2, 3, 4), (1, 2, 3, 5, 4)]
 
 
 def test_concept_note_rejection_memory_golden() -> None:
