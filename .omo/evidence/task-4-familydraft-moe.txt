@@ -1,0 +1,32 @@
+TASK 4 — Unified Qwen3 target wrapper with top-k logit capture
+Worker: Sisyphus-Junior (unspecified-low) | Repo: D:\MoE (familydraft, uv project)
+Base commit: 3379bf5 chore(repo): bootstrap familydraft project skeleton
+================================================================================
+
+[env probe] $ nvidia-smi
+=> exit 0 — RTX 4060 8GB visible, NVIDIA driver 610.88, CUDA UMD 13.3 (WDDM)
+[env probe] $ uv run python -c "import torch, transformers, sys; ..."
+=> exit 0 — python 3.12.9, torch 2.13.0+cpu (!), transformers 5.14.1, cuda_available False
+[env probe] HF cache: %USERPROFILE%\.cache\huggingface\hub contains models--Qwen--Qwen3-0.6B
+          (shared with parallel smoke-test task; verified present before load)
+[env probe] uv.lock pins torch 2.13.0 (pypi registry) + transformers 5.14.1
+[env probe] uv --version => 0.6.11 (no torch-backend support)
+[FINDING] PyPI torch wheel is CPU-only on Windows; CUDA 13 build required for -m gpu
+          acceptance. download.pytorch.org/whl/cu130 hosts
+          torch-2.13.0+cu130-cp312-cp312-win_amd64.whl — matches locked version 2.13.0
+          and driver CUDA UMD 13.3. Installing into project venv via uv pip
+          (pyproject.toml untouched except the one pytest-markers change I own).
+
+[FAIL-FIRST] $ uv run pytest tests/test_target_wrapper.py   (wrapper.py not yet written)
+  collected 0 items / 1 error
+  =================================== ERRORS ====================================
+  ________________ ERROR collecting tests/test_target_wrapper.py ________________
+  ImportError while importing test module 'D:\MoE\tests\test_target_wrapper.py'.
+  E   ModuleNotFoundError: No module named 'familydraft.targets.wrapper'
+  ERROR tests/test_target_wrapper.py
+  !!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+  ============================== 1 error in 1.83s ===============================
+=> exit code 2 (expected 2: collection error, ModuleNotFoundError familydraft.targets.wrapper)
+
+[ENV-FIX] $ uv pip install torch==2.13.0+cu130 --extra-index-url https://download.pytorch.org/whl/cu130 --index-strategy unsafe-best-match
+  started detached PID=18848 at 2026-08-07T00:16:45.7890054+05:30; log: .omo/evidence/torch_cu130_install.log

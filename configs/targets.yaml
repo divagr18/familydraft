@@ -1,0 +1,26 @@
+# Pinned Qwen3 target repositories (plan todo 4).
+# dtype bf16 is the single reference configuration; quantization is out of
+# scope by design. All repos share tokenizer vocab 151936 (verified via HF
+# config.json fetches; see .omo/drafts/familydraft-moe.state.bak.md Findings).
+targets:
+  - repo_id: Qwen/Qwen3-0.6B
+    dtype: bf16
+    notes: Local smoke/test target only; fits on the RTX 4060 8GB dev box; used by the wrapper test suite and local equivalence cases.
+  - repo_id: Qwen/Qwen3-4B
+    dtype: bf16
+    notes: Secondary trace + distillation training target; served on RunPod A100-80GB pods.
+  - repo_id: Qwen/Qwen3-8B
+    dtype: bf16
+    notes: PRIMARY trace/distillation/Phase-1-verdict target; EAGLE-3 baseline trained against it; RunPod A100-80GB.
+  - repo_id: Qwen/Qwen3-14B
+    dtype: bf16
+    notes: Trace + distillation training target; RunPod A100-80GB.
+  - repo_id: Qwen/Qwen3-32B
+    dtype: bf16
+    notes: Held-out UNSEEN target for transfer evaluation only; single A100-80GB.
+  - repo_id: Qwen/Qwen3-30B-A3B
+    dtype: bf16
+    notes: MoE verification-cost study target (Cascade arXiv:2506.20675 risk); probe rows only in Phase 1; single A100-80GB.
+  - repo_id: Qwen/Qwen3-Coder-30B-A3B
+    dtype: bf16
+    notes: Held-out UNSEEN code-variant target for transfer evaluation; single A100-80GB.

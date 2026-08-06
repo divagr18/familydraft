@@ -25,6 +25,7 @@ packages = ["src/familydraft"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = ["gpu: requires a CUDA GPU"]
 
 [tool.ruff]
 line-length = 100
