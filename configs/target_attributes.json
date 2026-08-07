@@ -1,0 +1,9 @@
+{
+  "Qwen/Qwen3-0.6B": {"params_b": 0.6, "layers": 28, "hidden": 1024, "active_b": 0.6, "moe": 0},
+  "Qwen/Qwen3-4B": {"params_b": 4.0, "layers": 36, "hidden": 2560, "active_b": 4.0, "moe": 0},
+  "Qwen/Qwen3-8B": {"params_b": 8.0, "layers": 36, "hidden": 4096, "active_b": 8.0, "moe": 0},
+  "Qwen/Qwen3-14B": {"params_b": 14.0, "layers": 40, "hidden": 5120, "active_b": 14.0, "moe": 0},
+  "Qwen/Qwen3-32B": {"params_b": 32.0, "layers": 64, "hidden": 5120, "active_b": 32.0, "moe": 0},
+  "Qwen/Qwen3-30B-A3B": {"params_b": 30.0, "layers": 48, "hidden": 2048, "active_b": 3.0, "moe": 1},
+  "Qwen/Qwen3-Coder-30B-A3B": {"params_b": 30.0, "layers": 48, "hidden": 2048, "active_b": 3.0, "moe": 1}
+}

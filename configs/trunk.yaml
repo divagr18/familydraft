@@ -1,0 +1,11 @@
+# Trunk configuration (plan todo 14).
+#
+# param_cap counts trunk-OWNED params (truncated layers + target-variant
+# module). The input embedding is SHARED with the target family (already
+# resident for serving) and is excluded from the cap.
+
+model_repo: Qwen/Qwen3-0.6B
+layers: 6
+param_cap: 200000000
+dtype: bf16
+attr_dim: 5
