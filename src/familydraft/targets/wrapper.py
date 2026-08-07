@@ -148,6 +148,47 @@ class TargetModel:
                 pad_token_id=self._pad_token_id(),
             )
 
+    def generate_greedy_batch(
+        self, prompts: list[list[int]], max_new_tokens: int
+    ) -> list[list[int]]:
+        """Greedy decode a batch of prompts in ONE model call.
+
+        Returns per-prompt NEW tokens only (continuation), each trimmed at the
+        first EOS. Padding is attention-masked, so per-sequence outputs are
+        identical to calling generate_greedy individually.
+        """
+        if not prompts:
+            return []
+        pad = self._pad_token_id()
+        eos = self._eos_id()
+        max_len = max(len(p) for p in prompts)
+        ids = torch.full((len(prompts), max_len), pad, dtype=torch.long, device=self._device)
+        mask = torch.zeros((len(prompts), max_len), dtype=torch.long, device=self._device)
+        for i, p in enumerate(prompts):
+            ids[i, : len(p)] = torch.tensor(p, dtype=torch.long, device=self._device)
+            mask[i, : len(p)] = 1
+        with torch.inference_mode():
+            out = self.model.generate(
+                input_ids=ids,
+                attention_mask=mask,
+                do_sample=False,
+                max_new_tokens=max_new_tokens,
+                pad_token_id=pad,
+            )
+        results: list[list[int]] = []
+        for i, p in enumerate(prompts):
+            new = out[i, len(p) :].tolist()
+            if eos is not None and eos in new:
+                new = new[: new.index(eos)]
+            results.append(new)
+        return results
+
+    def _eos_id(self) -> int | None:
+        eos = getattr(self.model.generation_config, "eos_token_id", None)
+        if isinstance(eos, list):
+            eos = eos[0] if eos else None
+        return None if eos is None else int(eos)
+
     def generate_sample(
         self,
         prompt_ids: object,

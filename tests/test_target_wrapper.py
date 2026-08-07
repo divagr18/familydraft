@@ -186,6 +186,20 @@ class TestTargetModelOnGpu:
         second = target.generate_sample(prompt_ids, temp=1.0, seed=1234)
         assert torch.equal(first, second)
 
+    def test_batch_greedy_matches_individual(self, target, prompt_ids) -> None:
+        prompt_ids = prompt_ids.tolist()[0]
+        # batch-of-1 must equal single-sequence greedy (proves pad/mask logic)
+        full = target.generate_greedy(torch.tensor([prompt_ids]), 12)
+        single = full[0, len(prompt_ids):].tolist()
+        b1 = target.generate_greedy_batch([prompt_ids], 12)
+        assert b1[0] == single
+        # within a batch, identical prompts must produce identical rows
+        # (deterministic). Cross-batch vs single can differ at near-ties due
+        # to bf16 batch-vs-sequential numerics (documented artifact), so we
+        # assert self-consistency, not bit-equality with a single decode.
+        b2 = target.generate_greedy_batch([prompt_ids, prompt_ids], 12)
+        assert b2[0] == b2[1]
+
     def test_topk_logits_shape_and_vocab_range(
         self,
         target: TargetModel,

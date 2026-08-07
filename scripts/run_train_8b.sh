@@ -21,17 +21,20 @@ cd "$REPO_DIR"
 export HF_HOME="${HF_HOME:-/workspace/hf-cache}"
 
 REPO="${REPO:-Qwen/Qwen3-8B}"
-PER_CLASS="${PER_CLASS:-60}"
+PER_CLASS="${PER_CLASS:-100}"
 CLASSES="${CLASSES:-code,chat,structured,math}"
-STEPS="${STEPS:-2000}"
+STEPS="${STEPS:-3000}"
 SPEC_LEN="${SPEC_LEN:-8}"
 TARGET_ID="${TARGET_ID:-2}"
+WORKERS="${WORKERS:-2}"
+BATCH="${BATCH:-8}"
 
-echo "[train_8b] repo=$REPO per_class=$PER_CLASS classes=$CLASSES steps=$STEPS"
+echo "[train_8b] repo=$REPO per_class=$PER_CLASS classes=$CLASSES steps=$STEPS workers=$WORKERS batch=$BATCH"
 
 echo "[train_8b] 1/4 generating training traces from $REPO ..."
 python scripts/gen_train_data.py --repo "$REPO" --per-class "$PER_CLASS" \
-  --max-new 128 --out-dir runs/traces_train --classes "$CLASSES"
+  --max-new 128 --out-dir runs/traces_train --classes "$CLASSES" \
+  --workers "$WORKERS" --batch "$BATCH"
 
 echo "[train_8b] 2/4 building distillation shards ..."
 python scripts/build_distill_dataset.py --traces-dir runs/traces_train \
