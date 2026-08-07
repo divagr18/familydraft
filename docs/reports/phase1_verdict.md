@@ -1,9 +1,11 @@
 # Phase-1 verdict — FamilyDraftMoE integrated speculative drafter
 
-**Status:** EXPLORATORY. The plan's Phase-1 success criterion (heterogeneous
-top-2 + DAG fusion beats an equal-active-FLOP dense drafter on 2+ task classes)
-has **NOT been met or even run**: no equal-FLOP dense baseline, no EAGLE-3
-baseline, no full ablation campaign were completed. See Corrigendum below.
+**Status:** NOT MET (honest). The local Qwen3-0.6B campaign now runs the full
+pre-registered protocol (`configs/verdict_protocol.yaml`, committed before the
+campaign per `scripts/m3_order_check.py` PASS) and yields **FAIL**: the DAG
+loses to vanilla AR and to the equal-FLOP dense baseline on every task class at
+0.6B scale. EAGLE-3 (SpecForge) and the 8B campaign remain pod-deferred. See
+Corrigendum and the M3 campaign section below.
 
 ---
 
@@ -181,3 +183,49 @@ drafting overhead is amortized against a large target.
 **Router cold-start fix (commit):** `cold_start` now seeds `accepted_len_ema` at 1.0
 (minimal horizon) so selection is driven by base expected quality rather than an
 inflated horizon that made high-base experts look expensive and got them skipped.
+
+---
+
+## M3 campaign — local Qwen3-0.6B, pre-registered protocol
+
+The Phase-1 campaign infrastructure is now real: `configs/verdict_protocol.yaml`
+(pre-registered; `scripts/m3_order_check.py` verifies it was committed before the
+campaign), `configs/baseline_report.schema.json`, FLOP accounting
+(`src/familydraft/eval/flops.py`), the unified harness (`scripts/run_baselines.py`),
+aggregation (`scripts/run_phase1.py`) and verdict computation (`scripts/m3_verdict.py`).
+EAGLE-3 (SpecForge) is a pod pipeline (`scripts/setup_eagle3.sh`,
+`scripts/eval_eagle3.py`, `scripts/resume_baseline.sh`) — the 8B training is
+pod-deferred, so its rows are recorded as reported gaps, not fabricated.
+
+**Local campaign result (6 systems × 4 task classes, 0.6B, tokens/sec; runs=3, capped prompts):**
+
+| System | code | repetitive | structured | gsm8k |
+|---|---|---|---|---|
+| vanilla_ar | 21.55 | 21.55 | 21.51 | 21.13 |
+| small_dense_drafter | 9.30 | 9.11 | 9.94 | 9.02 |
+| equal_flop_dense_drafter | 9.38 | 9.09 | 10.04 | 9.09 |
+| single_best_expert | 19.32 | 22.65 | 19.38 | 17.13 |
+| hetero_top2_no_fusion | 7.57 | 6.44 | 7.19 | 7.37 |
+| full_proposal_moe | 8.18 | 6.80 | 7.56 | 8.19 |
+
+Artifacts: `runs/baselines/*.json` (schema-valid), `runs/results/phase1.csv`
+(24 rows + config hashes + FLOP ledger), `scripts/m3_verdict.py` output.
+
+**Verdict: FAIL (exit 78).** Per the pre-registered rules:
+- DAG speedup vs vanilla: 0.32–0.39x on all classes (threshold 1.0) — drafting +
+  verification cost exceeds acceptance gain at 0.6B (consistent with the P3
+  memory-bound finding).
+- DAG vs equal-FLOP dense drafter: 0.75–0.90x on all classes — the audit's core
+  demand is now *measured*, and at 0.6B the DAG loses. The FLOP ledger shows why:
+  the DAG spends ~5.6–5.8 GFLOP/emitted token vs 0.9 GFLOP for vanilla (tree
+  verification over the full 28-layer target dominates).
+- DAG loses to single-best-expert on all 4 classes (max allowed 1).
+- bf16 exact-match < 0.9 on most speculative rows — the documented batch-vs-
+  sequential artifact, now reported per-row instead of hidden.
+
+**Interpretation:** this is the honest 0.6B answer — the heterogeneous MoE is
+not profitable on a tiny memory-bound target where a 6-layer drafter costs as
+much per forward as the 28-layer target's decode. The thesis measurement remains
+the 8B pod campaign (larger target amortizes drafting overhead; EAGLE-3 provides
+the generalist bar). The infrastructure is the deliverable of this round; the
+verdict gates are real and reproducible.
