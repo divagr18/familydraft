@@ -33,6 +33,15 @@ log "pip install -e . in $REPO_DIR (torch left as-is)"
 "$PYTHON" -m pip install --upgrade pip --quiet || true
 "$PYTHON" -m pip install -e . --no-input
 
+# --- 2b. Optional torch upgrade (set UPGRADE_TORCH=1) -----------------------
+# RunPod templates ship a working CUDA torch. Upgrade to the cu130 build only
+# if you specifically want it (driver must be CUDA 13-capable, i.e. >=580).
+if [ "${UPGRADE_TORCH:-0}" = "1" ]; then
+  log "upgrading torch to latest +cu130 build"
+  "$PYTHON" -m pip install --upgrade torch \
+    --extra-index-url https://download.pytorch.org/whl/cu130
+fi
+
 # --- 3. GPU visibility -------------------------------------------------------
 if ! command -v nvidia-smi >/dev/null 2>&1; then
   log "ERROR: nvidia-smi not found - pod has no NVIDIA driver"
