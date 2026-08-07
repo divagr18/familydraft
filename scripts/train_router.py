@@ -72,11 +72,27 @@ def _accepted_len(tgt, past, t_next, proposal: list[int], ctx_len: int) -> int:
     return m
 
 
+def _builtin_prompts() -> list[str]:
+    """Diverse built-in training prompts (distinct from the eval prompt sets)."""
+    import importlib.util
+    import sys
+
+    spec = importlib.util.spec_from_file_location("gtd", Path("scripts/gen_train_data.py"))
+    gtd = importlib.util.module_from_spec(spec)
+    sys.modules["gtd"] = gtd
+    spec.loader.exec_module(gtd)
+    prompts: list[str] = []
+    prompts.extend(gtd._code_prompts(12))
+    prompts.extend(gtd._chat_prompts(12))
+    prompts.extend(gtd._structured_prompts(8))
+    return prompts
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", default="Qwen/Qwen3-0.6B")
     parser.add_argument("--general-checkpoint", default="")
-    parser.add_argument("--prompts", default="runs/traces_train_clean/worker_0.jsonl")
+    parser.add_argument("--prompts", default="")
     parser.add_argument("--n-prompts", type=int, default=15)
     parser.add_argument("--steps-per-prompt", type=int, default=40)
     parser.add_argument("--out", default="configs/router_weights.json")
@@ -122,30 +138,38 @@ def main() -> int:
 
     # Load training prompts: --prompts may be a traces jsonl (rows with
     # prompt_ids), a plain {"prompt_text": ...} jsonl, or a directory of either.
-    prompts_path = Path(args.prompts)
-    files = sorted(prompts_path.glob("*.jsonl")) if prompts_path.is_dir() else [prompts_path]
-    rows: list[dict] = []
-    for f in files:
-        if not f.exists():
-            continue
-        with f.open(encoding="utf-8") as handle:
-            rows.extend(json.loads(line) for line in handle if line.strip())
-
+    # If omitted, fall back to built-in diverse prompts.
     prompt_lists: list[list[int]] = []
-    for r in rows[: args.n_prompts]:
-        if "prompt_ids" in r:
-            prompt_lists.append(r["prompt_ids"])
-        elif "prompt_text" in r:
+    if args.prompts:
+        prompts_path = Path(args.prompts)
+        files = sorted(prompts_path.glob("*.jsonl")) if prompts_path.is_dir() else [prompts_path]
+        rows: list[dict] = []
+        for f in files:
+            if not f.exists():
+                continue
+            with f.open(encoding="utf-8") as handle:
+                rows.extend(json.loads(line) for line in handle if line.strip())
+        for r in rows[: args.n_prompts]:
+            if "prompt_ids" in r:
+                prompt_lists.append(r["prompt_ids"])
+            elif "prompt_text" in r:
+                prompt_lists.append(
+                    tok(r["prompt_text"], return_tensors="pt", add_special_tokens=False)[
+                        "input_ids"
+                    ][0].tolist()
+                )
+    else:
+        for text in _builtin_prompts()[: args.n_prompts]:
             prompt_lists.append(
-                tok(r["prompt_text"], return_tensors="pt", add_special_tokens=False)[
-                    "input_ids"
-                ][0].tolist()
+                tok(text, return_tensors="pt", add_special_tokens=False)["input_ids"][
+                    0
+                ].tolist()
             )
+
     if not prompt_lists:
         print(
-            f"train_router: no prompts found under {prompts_path}. The traces "
-            "live on the RunPod network volume (runs/traces_train/ is gitignored), "
-            "or run trace generation first. Aborting.",
+            f"train_router: no prompts found under {args.prompts or '(builtin)'}. "
+            "Aborting.",
             flush=True,
         )
         return 3
