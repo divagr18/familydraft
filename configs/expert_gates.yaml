@@ -1,0 +1,31 @@
+# Expert gate evidence (plan F4 scope-fidelity).
+#
+# Every expert that requires a gate (training evidence, cost budget, or
+# acceptance-quality evidence) is listed here with its gate proof. An expert
+# listed in the DAG without an entry here is a scope violation. This file is
+# part of the pre-registration set; it is committed before the campaigns that
+# consume it and is checked by scripts/f2_f4_audit.py.
+
+format_version: 1.0
+
+gates:
+  copy:
+    gate_type: acceptance_quality
+    evidence: "measured acceptance (0.356 on 0.6B; 0.007 on 8B) + 1.60x exploratory speedup on repetitive content"
+    status: passed
+  general:
+    gate_type: training_evidence
+    evidence: "distilled general expert (train_general_expert.py); held-out top-1 > control; checkpoint at runs/trainlogs/"
+    status: passed
+  macro:
+    gate_type: training_evidence
+    evidence: "macro head training deferred (head=None); parser-driven fallback verified (test_macro.py)"
+    status: conditional  # usable head-free; learned head gated on macro-head training
+  reject_memory:
+    gate_type: acceptance_quality
+    evidence: "rejection-memory expert records real bonuses (test_draft_dag.py); min_support gate before activation"
+    status: passed
+
+not_gated:
+  - trunk  # shared architecture component, not an expert
+  - router  # controller, gate-evidence tracked via configs/router.yaml + train_router.py
