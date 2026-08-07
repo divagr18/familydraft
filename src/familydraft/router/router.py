@@ -17,6 +17,7 @@ neural router in v1.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 
 HORIZONS = (2, 4, 6, 8)
 
@@ -94,6 +95,27 @@ class UtilityRouter:
         w = self.weights[expert]
         dot = sum(wi * xi for wi, xi in zip(w, features))
         return max(0.0, self.base[expert] + dot)
+
+    def set_weights(self, weights: dict[str, list[float]]) -> None:
+        """Load learned bandit weights (from rollout training)."""
+        for expert, w in weights.items():
+            if expert in self.weights and len(w) == len(self.weights[expert]):
+                self.weights[expert] = [float(x) for x in w]
+
+    def weights_json(self) -> dict[str, list[float]]:
+        return {e: list(w) for e, w in self.weights.items()}
+
+    def save_weights(self, path) -> None:
+        import json
+
+        Path(path).parent.mkdir(parents=True, exist_ok=True)
+        Path(path).write_text(json.dumps(self.weights_json()), encoding="utf-8")
+
+    @classmethod
+    def load_weights(cls, path) -> dict[str, list[float]]:
+        import json
+
+        return json.loads(Path(path).read_text(encoding="utf-8"))
 
     def horizon_for(self, expert: str) -> int:
         acc = self.stats[expert].accepted_len_ema

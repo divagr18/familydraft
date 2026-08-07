@@ -102,6 +102,11 @@ def main() -> int:
     parser.add_argument(
         "--dag", action="store_true", help="run the full router+multi-expert DAG system"
     )
+    parser.add_argument(
+        "--router-weights",
+        default="",
+        help="learned router bandit weights (from scripts/train_router.py)",
+    )
     parser.add_argument("--out", default="runs/results/integrated_speedup.json")
     args = parser.parse_args()
 
@@ -187,8 +192,13 @@ def main() -> int:
                 router_kwargs["draft_ms"],
                 router_kwargs["verify_curve"],
                 router_kwargs["base"],
-                tau_abstain=0.01,
+                tau_abstain=0.0,  # cold-start router never abstains
             )
+            if args.router_weights:
+                from familydraft.router.router import UtilityRouter
+
+                router.set_weights(UtilityRouter.load_weights(args.router_weights))
+                print(f"loaded router weights: {args.router_weights}", flush=True)
             return DagSpeculator(
                 target,
                 router,
