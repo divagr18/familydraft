@@ -60,11 +60,84 @@ def _validate(report: dict, schema_path: Path) -> list[str]:
     return errors
 
 
+def _reproduce_row(report: dict, tolerance_pct: float) -> int:
+    """Re-run one baseline row from its recorded run_args and compare the
+    measured tokens/sec against the stored value (plan todo 22 acceptance:
+    spot-check rows within ±3%)."""
+    import subprocess
+
+    run_args = report.get("run_args")
+    if not run_args:
+        print(f"run_phase1: row {report.get('system')}/{report.get('task_class')} "
+              "has no run_args recorded (old report); regenerate it", file=sys.stderr)
+        return 2
+
+    cmd = [
+        sys.executable, "scripts/run_baselines.py",
+        "--system", run_args["system"],
+        "--task-class", run_args["task_class"],
+        "--repo", run_args["repo"],
+        "--max-new", str(run_args["max_new"]),
+        "--spec-len", str(run_args["spec_len"]),
+        "--max-prompts", str(run_args["max_prompts"]),
+        "--runs", str(run_args["runs"]),
+        "--out", str(BASELINES_DIR / f"repro_{run_args['system']}_{run_args['task_class']}.json"),
+    ]
+    if run_args.get("general_checkpoint"):
+        cmd += ["--general-checkpoint", run_args["general_checkpoint"]]
+    if run_args.get("router_weights"):
+        cmd += ["--router-weights", run_args["router_weights"]]
+    if run_args.get("ablation"):
+        cmd += ["--ablation", run_args["ablation"]]
+
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    if proc.returncode != 0:
+        print(f"run_phase1: re-run of {run_args['system']}/{run_args['task_class']} "
+              f"failed (exit {proc.returncode}): {proc.stderr[-500:]}", file=sys.stderr)
+        return 1
+
+    repro_path = BASELINES_DIR / f"repro_{run_args['system']}_{run_args['task_class']}.json"
+    try:
+        repro = json.loads(repro_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        print(f"run_phase1: re-run report unreadable: {repro_path}", file=sys.stderr)
+        return 1
+
+    orig = float(report["target_tokens_per_second"])
+    new = float(repro["target_tokens_per_second"])
+    pct = 100.0 * abs(new - orig) / max(1e-9, orig)
+    status = "OK" if pct <= tolerance_pct else "DIVERGED"
+    print(f"run_phase1: row {run_args['system']}/{run_args['task_class']} hash "
+          f"{report.get('config_hash')}: orig={orig:.2f} tps re-run={new:.2f} tps "
+          f"delta={pct:.2f}% ({status})")
+    return 0 if status == "OK" else 1
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--schema", default="configs/baseline_report.schema.json")
+    parser.add_argument(
+        "--row",
+        default="",
+        help="config_hash of a baseline row to reproduce (re-run + ±3% tps check)",
+    )
+    parser.add_argument("--tolerance-pct", type=float, default=3.0)
     args = parser.parse_args()
     schema_path = Path(args.schema)
+
+    if args.row:
+        if not BASELINES_DIR.exists():
+            print(f"run_phase1: no baselines dir {BASELINES_DIR}", file=sys.stderr)
+            return 2
+        for path in sorted(BASELINES_DIR.glob("*.json")):
+            try:
+                report = json.loads(path.read_text(encoding="utf-8"))
+            except json.JSONDecodeError:
+                continue
+            if report.get("config_hash") == args.row:
+                return _reproduce_row(report, args.tolerance_pct)
+        print(f"run_phase1: no row with config_hash {args.row}", file=sys.stderr)
+        return 2
 
     if not PROTOCOL.exists():
         print(f"run_phase1: missing protocol {PROTOCOL}", file=sys.stderr)
@@ -85,6 +158,8 @@ def main() -> int:
 
     reports = []
     for path in sorted(BASELINES_DIR.glob("*.json")):
+        if path.stem.startswith("repro_"):
+            continue  # reproducibility spot-check artifacts, not campaign rows
         try:
             report = json.loads(path.read_text(encoding="utf-8"))
         except json.JSONDecodeError:

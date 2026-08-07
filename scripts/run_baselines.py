@@ -408,6 +408,18 @@ def main() -> int:
         "runs": max(1, len(times)),
         "config_hash": _config_hash(args.system, args.task_class, args.repo, args.spec_len,
                                      args.general_checkpoint, args.router_weights, ledger),
+        "run_args": {
+            "system": args.system,
+            "task_class": args.task_class,
+            "repo": args.repo,
+            "max_new": args.max_new,
+            "spec_len": args.spec_len,
+            "max_prompts": args.max_prompts,
+            "general_checkpoint": args.general_checkpoint,
+            "router_weights": args.router_weights,
+            "runs": args.runs,
+            "ablation": args.ablation,
+        },
         "flops_per_emitted_token": ledger["flops_per_emitted_token"],
         "dense_equivalent_layers": ledger.get("dense_equivalent_layers"),
         "exactness": {
