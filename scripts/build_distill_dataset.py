@@ -142,11 +142,14 @@ def main() -> int:
 
     tokenizer = AutoTokenizer.from_pretrained(args.repo_for_tokenizer)
     manifest_path = Path(distill_cfg["eval_manifest"])
+    eval_hashes: set[str] = set()
     if manifest_path.exists():
-        eval_hashes = build_eval_hash_set(manifest_path, tokenizer)
-        print(f"eval hash set size: {len(eval_hashes)}")
+        try:
+            eval_hashes = build_eval_hash_set(manifest_path, tokenizer)
+            print(f"eval hash set size: {len(eval_hashes)}")
+        except (FileNotFoundError, KeyError, OSError) as exc:
+            print(f"warning: eval manifest unusable ({exc}); leak-proof skipped")
     else:
-        eval_hashes = set()
         print(f"warning: eval manifest {manifest_path} missing; leak-proof skipped")
 
     trace_files = sorted(Path(args.traces_dir).glob("*.jsonl"))
