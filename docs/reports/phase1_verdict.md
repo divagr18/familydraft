@@ -201,12 +201,12 @@ pod-deferred, so its rows are recorded as reported gaps, not fabricated.
 
 | System | code | repetitive | structured | gsm8k |
 |---|---|---|---|---|
-| vanilla_ar | 21.55 | 21.55 | 21.51 | 21.13 |
-| small_dense_drafter | 9.30 | 9.11 | 9.94 | 9.02 |
-| equal_flop_dense_drafter | 9.38 | 9.09 | 10.04 | 9.09 |
-| single_best_expert | 19.32 | 22.65 | 19.38 | 17.13 |
-| hetero_top2_no_fusion | 7.57 | 6.44 | 7.19 | 7.37 |
-| full_proposal_moe | 8.18 | 6.80 | 7.56 | 8.19 |
+| vanilla_ar | 21.62 | 21.60 | 21.93 | 21.91 |
+| small_dense_drafter | 9.25 | 9.04 | 10.10 | 9.01 |
+| equal_flop_dense_drafter | 9.38 | 9.11 | 10.07 | 8.98 |
+| single_best_expert | 19.24 | 22.40 | 19.40 | 17.26 |
+| hetero_top2_no_fusion | 7.62 | 6.38 | 7.10 | 7.37 |
+| full_proposal_moe | 8.14 | 6.82 | 7.57 | 8.12 |
 
 Artifacts: `runs/baselines/*.json` (schema-valid), `runs/results/phase1.csv`
 (24 rows + config hashes + FLOP ledger), `scripts/m3_verdict.py` output.
