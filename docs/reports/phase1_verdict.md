@@ -56,6 +56,33 @@ Artifacts: `runs/results/integrated_speedup_8b.json`,
 
 ---
 
+## Erratum (padding fix)
+
+After this report, a real bug was found and fixed in batched trace generation
+(`generate_greedy_batch`): right-padding was used (wrong side for causal models)
+and the continuation slice was mis-indexed, so **mixed-length batches produced
+polluted training traces** (leading pad/prompt tokens). This corrupted the
+distillation data in the earlier attempts. Fix (commit `f3d394e`): left-padding +
+correct `max_len:` slice.
+
+Re-validated locally on clean 0.6B data (120 traces, all classes):
+
+| Metric | Polluted drafter | Clean drafter |
+|---|---|---|
+| held-out top-1 accuracy | 0.36% | **47.9%** |
+| margin vs random control | −0.5% | **+34.8%** |
+| general agreement (eval) | 0.47 | **0.92** |
+| general tokens/round (code) | 1.03 | 1.07 |
+| general speedup (code) | 0.47x | 0.43x |
+
+The clean drafter is far more accurate and agrees with vanilla much better, but
+**local 0.6B→0.6B speedup stays <1x** because drafting overhead (K trunk forwards
+per round on the slow 4060) exceeds the modest accepted-token gain when the
+target is itself tiny. The meaningful neural-drafter test remains the Qwen3-8B
+run, which must be regenerated with the fix.
+
+---
+
 ## Interpretation
 
 - **Demonstrated, real speedup: 1.60x** via the copy expert on repetition-friendly
