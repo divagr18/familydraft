@@ -27,10 +27,13 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import sys
 import time
 from pathlib import Path
 
 import torch
+
+BASELINES_DIR = Path("runs/baselines")
 
 CODE_PROMPTS = [
     "Write a Python function that returns the sum of a list of numbers:",
@@ -282,10 +285,53 @@ def _flops_ledger(system, spec_len, tpr, verify_nodes) -> dict:
             "label": system}
 
 
+def _run_all_rows(args) -> int:
+    """Run every (system x task-class) row by re-invoking this script per row.
+    A failing row is recorded and the campaign continues (plan todo 21 QA:
+    one crashing row must not stop the rest). Returns 0 only if every row ran."""
+    import subprocess
+
+    failed: list[tuple[str, str, int]] = []
+    base = [
+        sys.executable, str(Path(__file__).resolve()),
+        "--repo", args.repo,
+        "--max-new", str(args.max_new),
+        "--spec-len", str(args.spec_len),
+        "--max-prompts", str(args.max_prompts),
+        "--runs", str(args.runs),
+    ]
+    if args.general_checkpoint:
+        base += ["--general-checkpoint", args.general_checkpoint]
+    if args.router_weights:
+        base += ["--router-weights", args.router_weights]
+    if args.ablation:
+        base += ["--ablation", args.ablation]
+
+    for system in VALID_SYSTEMS:
+        for task_class in TASK_CLASSES:
+            out = str(BASELINES_DIR / f"{system}_{task_class}.json")
+            proc = subprocess.run(
+                base + ["--system", system, "--task-class", task_class, "--out", out],
+                capture_output=True,
+                text=True,
+            )
+            if proc.returncode != 0:
+                failed.append((system, task_class, proc.returncode))
+                print(f"run_baselines: row {system}/{task_class} FAILED "
+                      f"(exit {proc.returncode}): {proc.stderr[-300:]}", file=sys.stderr)
+            else:
+                print(f"run_baselines: row {system}/{task_class} OK -> {out}", flush=True)
+
+    if failed:
+        print(f"run_baselines: {len(failed)} row(s) failed: {failed}", file=sys.stderr)
+        return 1
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--system", choices=VALID_SYSTEMS, required=True)
-    parser.add_argument("--task-class", choices=TASK_CLASSES, required=True)
+    parser.add_argument("--system", choices=VALID_SYSTEMS, default="")
+    parser.add_argument("--task-class", choices=TASK_CLASSES, default="")
     parser.add_argument("--repo", default="Qwen/Qwen3-0.6B")
     parser.add_argument("--max-new", type=int, default=64)
     parser.add_argument("--spec-len", type=int, default=4)
@@ -299,7 +345,19 @@ def main() -> int:
         default="",
         help="pre-registered ablation config name (configs/ablations/<name>.yaml)",
     )
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="run every (system x task-class) row, continuing past failures",
+    )
     args = parser.parse_args()
+
+    if args.all:
+        return _run_all_rows(args)
+
+    if not args.system or not args.task_class:
+        print("run_baselines: --system and --task-class are required unless --all", file=sys.stderr)
+        return 2
 
     ablation = {}
     if args.ablation:
