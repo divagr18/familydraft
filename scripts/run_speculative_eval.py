@@ -215,6 +215,7 @@ def main() -> int:
                 {e: args.spec_len for e in dag_experts},
                 target_id,
                 memory=memory,
+                always_on=["copy"],
             )
 
         drafters["dag"] = _make_dag_spec

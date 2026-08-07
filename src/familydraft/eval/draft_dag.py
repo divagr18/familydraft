@@ -51,6 +51,7 @@ class DagSpeculator:
         horizons: dict,
         target_id: int = 0,
         memory=None,
+        always_on: list[str] | None = None,
     ) -> None:
         self.model = target_model.model
         self.tokenizer = target_model.tokenizer
@@ -59,6 +60,7 @@ class DagSpeculator:
         self.horizons = dict(horizons)
         self.target_id = target_id
         self.memory = memory
+        self.always_on = list(always_on or [])
         self.device = next(self.model.parameters()).device
 
     def _feed(self, past, tokens: list[int]):
@@ -106,7 +108,11 @@ class DagSpeculator:
 
             feats = self._features(context_ids, 0.0)
             decision = self.router.select(feats)
-            selected = [e for e in decision.expert_subset if e in self.experts]
+            # always_on experts (cheap structural ones) always propose; the
+            # router only decides which ADDITIONAL experts to activate.
+            selected = [
+                e for e in self.always_on if e in self.experts
+            ] + [e for e in decision.expert_subset if e in self.experts and e not in self.always_on]
 
             def emit_single():
                 nonlocal past, logits, ctx_len
@@ -139,36 +145,15 @@ class DagSpeculator:
             for eid, prop in enumerate(proposals.values()):
                 dag.insert(prop, expert_id=eid)
 
-            best = None  # (m, bonus, cache, winner_expert, branch_accepted)
-            per_expert_m: dict[str, int] = {}
-            for branch in dag.branches():
-                if not branch:
-                    continue
-                cache_copy = copy.deepcopy(past)
-                cp, lg = self._feed(cache_copy, list(branch))
-                K = len(branch)
-                m = 0
-                bonus = t_next
-                if branch[0] == t_next:
-                    m = 1
-                    for i in range(1, K):
-                        tt = int(torch.argmax(lg[i - 1], dim=-1))
-                        if branch[i] == tt:
-                            m += 1
-                        else:
-                            bonus = tt
-                            break
-                    else:
-                        bonus = int(torch.argmax(lg[K - 1], dim=-1))
-                final = self._crop(cp, ctx_len + m)
-                src = self._branch_source(branch, proposals, selected)
-                per_expert_m[src] = max(per_expert_m.get(src, 0), m)
-                if best is None or m > best[0]:
-                    best = (m, bonus, final, src, list(branch[:m]))
-
-            m, bonus, final_cache, winner, accepted = best
+            verified = self._verify_tree(past, ctx_len, t_next, dag, proposals, selected)
+            if verified is None:
+                emit_single()
+                continue
+            best, per_expert_m, tree_cache = verified
+            m, bonus, winner, accepted = best
             accepted_tokens += m
 
+            final_cache = self._crop(tree_cache, ctx_len + m)
             past, logits_next = self._feed(final_cache, [bonus])
             logits = logits_next[-1]
             ctx_len += m + 1
@@ -204,6 +189,81 @@ class DagSpeculator:
             if tuple(proposals[e]) == tuple(branch):
                 return e
         return selected[0] if selected else ""
+
+    def _verify_tree(self, base_cache, ctx_len, t_next, dag, proposals, selected):
+        """Verify ALL DAG nodes in ONE forward (tree attention).
+
+        Enumerates the DAG's non-root nodes in topological order, feeds them as a
+        single sequence with a 0/-inf tree mask (node attends only to context +
+        its ancestors) and depth-based position_ids, then walks each branch's
+        acceptance from the per-node logits. Shared prefixes are computed once.
+        Returns (best_branch, per_expert_m, tree_cache) where tree_cache holds
+        context + all nodes and must be cropped by the caller.
+        """
+        NEG = float("-inf")
+        tokens: list[int] = []
+        parent: list[int] = []
+        depth: list[int] = []
+        row_by_id: dict[int, int] = {}
+        for node in dag.nodes_topo():
+            if node.node_id == 0:
+                continue
+            row_by_id[node.node_id] = len(tokens)
+            tokens.append(int(node.token_id))
+            parent.append(-1 if node.depth == 1 else row_by_id[node.parent_id])
+            depth.append(node.depth)
+        N = len(tokens)
+        if N == 0:
+            return None
+
+        pos = [ctx_len + d - 1 for d in depth]
+        mask = torch.full((1, 1, N, ctx_len + N), NEG, dtype=torch.bfloat16, device=self.device)
+        mask[:, :, :, :ctx_len] = 0
+        for i in range(N):
+            mask[:, :, i, ctx_len + i] = 0
+            p = parent[i]
+            while p != -1:
+                mask[:, :, i, ctx_len + p] = 0
+                p = parent[p]
+
+        tree_cache = copy.deepcopy(base_cache)
+        with torch.inference_mode():
+            out = self.model(
+                input_ids=torch.tensor([tokens], device=self.device),
+                past_key_values=tree_cache,
+                attention_mask=mask,
+                position_ids=torch.tensor([pos], device=self.device),
+                use_cache=True,
+            )
+        lg = out.logits[0]
+        tree_cache = out.past_key_values
+
+        best = None
+        per_expert_m: dict[str, int] = {}
+        for branch in dag.branches():
+            K = len(branch)
+            if branch[0] != t_next:
+                m = 0
+                bonus = t_next
+            else:
+                m = 1
+                bonus = t_next
+                for j in range(1, K):
+                    prev_node = dag.get(list(branch[:j]))
+                    tt = int(torch.argmax(lg[row_by_id[prev_node]], dim=-1))
+                    if branch[j] == tt:
+                        m += 1
+                    else:
+                        bonus = tt
+                        break
+                else:
+                    last_node = dag.get(list(branch[:K]))
+                    bonus = int(torch.argmax(lg[row_by_id[last_node]], dim=-1))
+            src = self._branch_source(branch, proposals, selected)
+            per_expert_m[src] = max(per_expert_m.get(src, 0), m)
+            if best is None or m > best[0]:
+                best = (m, bonus, src, list(branch[:m]))
+        return best, per_expert_m, tree_cache
 
     def _maybe_record_rejection(self, context_ids, winner, per_expert_m) -> None:
         if self.memory is None:
