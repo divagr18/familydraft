@@ -179,7 +179,7 @@ class DagSpeculator:
                     draft_ms=0.5,
                     first_rejection=float(per_expert_m.get(e, 0) + 1),
                 )
-            self._maybe_record_rejection(context_ids, winner, per_expert_m)
+            self._maybe_record_rejection(context_ids, winner, per_expert_m, proposals)
 
         return {
             "tokens": generated[:max_new_tokens],
@@ -277,11 +277,11 @@ class DagSpeculator:
                 best = (m, bonus, src, list(branch[:m]))
         return best, per_expert_m, tree_cache
 
-    def _maybe_record_rejection(self, context_ids, winner, per_expert_m) -> None:
+    def _maybe_record_rejection(self, context_ids, winner, per_expert_m, proposals) -> None:
         if self.memory is None:
             return
         for e, m in per_expert_m.items():
-            if m < len(self.experts[e](context_ids)):
+            if m < len(proposals.get(e, [])):
                 fingerprint = (tuple(context_ids[-8:]), "any", str(self.target_id), "greedy")
                 try:
                     self.memory.record_rejection(fingerprint, replacement=[], accepted_suffix=[])
