@@ -309,7 +309,10 @@ def _run_all_rows(args) -> int:
 
     for system in VALID_SYSTEMS:
         for task_class in TASK_CLASSES:
-            out = str(BASELINES_DIR / f"{system}_{task_class}.json")
+            if args.ablation:
+                out = str(BASELINES_DIR / f"abl_{args.ablation}_{system}_{task_class}.json")
+            else:
+                out = str(BASELINES_DIR / f"{system}_{task_class}.json")
             proc = subprocess.run(
                 base + ["--system", system, "--task-class", task_class, "--out", out],
                 capture_output=True,
@@ -490,7 +493,7 @@ def main() -> int:
 
     out_name = f"{args.system}_{args.task_class}.json"
     if args.ablation:
-        out_name = f"abl_{args.ablation}_{args.task_class}.json"
+        out_name = f"abl_{args.ablation}_{args.system}_{args.task_class}.json"
     out_path = Path(args.out) if args.out else (Path("runs/baselines") / out_name)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
