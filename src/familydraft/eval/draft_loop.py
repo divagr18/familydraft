@@ -26,6 +26,10 @@ class IntegratedSpeculator:
         self.spec_len = spec_len
         self.target_id = target_id
         self.device = next(self.model.parameters()).device
+        eos = getattr(self.model.generation_config, "eos_token_id", None)
+        if isinstance(eos, list):
+            eos = eos[0] if eos else None
+        self._eos = None if eos is None else int(eos)
 
     def _feed(self, past, input_ids: torch.Tensor):
         with torch.inference_mode():
@@ -55,6 +59,8 @@ class IntegratedSpeculator:
 
             if not draft or draft[0] != t_next:
                 generated.append(t_next)
+                if t_next == self._eos:
+                    break
                 past, logits_next = self._feed(
                     past, torch.tensor([[t_next]], device=self.device)
                 )
@@ -83,6 +89,8 @@ class IntegratedSpeculator:
             )
             generated.extend(accepted)
             generated.append(bonus)
+            if bonus == self._eos:
+                break
             logits = logits_next[-1]
             seq_len += m + 1
 

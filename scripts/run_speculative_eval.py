@@ -61,12 +61,15 @@ PROMPT_SETS = {
 }
 
 
-def _gpu_time(fn) -> float:
-    torch.cuda.synchronize()
-    t0 = time.perf_counter()
-    fn()
-    torch.cuda.synchronize()
-    return time.perf_counter() - t0
+def _mean(vals):
+    return sum(vals) / max(1, len(vals))
+
+
+def _std(vals):
+    if len(vals) < 2:
+        return 0.0
+    mu = _mean(vals)
+    return (sum((v - mu) ** 2 for v in vals) / (len(vals) - 1)) ** 0.5
 
 
 def _target_id_for(repo: str) -> int:
@@ -108,6 +111,14 @@ def main() -> int:
         help="learned router bandit weights (from scripts/train_router.py)",
     )
     parser.add_argument("--out", default="runs/results/integrated_speedup.json")
+    parser.add_argument(
+        "--manifest",
+        default="",
+        help="sealed manifest items.jsonl (uses prompt_text instead of hand-picked prompt-set)",
+    )
+    parser.add_argument(
+        "--runs", type=int, default=5, help="measurement runs per drafter per prompt"
+    )
     args = parser.parse_args()
 
     from familydraft.draft.trunk import build_trunk_from_config
@@ -184,9 +195,9 @@ def main() -> int:
         )
 
         def _make_dag_spec():
-            # Build a fresh speculator per prompt so router feedback does not
-            # accumulate across prompts (mirrors the chain's fresh-per-prompt
-            # measurement).
+            # Build a fresh speculator AND fresh memory per run so neither router
+            # feedback nor rejection memory accumulates across measurements
+            # (isolated per-run state per the audit).
             router = build_dag_router(
                 list(dag_experts.keys()),
                 router_kwargs["draft_ms"],
@@ -199,13 +210,14 @@ def main() -> int:
 
                 router.set_weights(UtilityRouter.load_weights(args.router_weights))
                 print(f"loaded router weights: {args.router_weights}", flush=True)
+            fresh_memory = RejectionMemory(min_support=1)
             return DagSpeculator(
                 target,
                 router,
                 {
                     "copy": make_copy_drafter(CopyExpert(seed=4, min_length=3), args.spec_len),
                     "macro": make_macro_drafter(macro_expert, tok),
-                    "reject_memory": make_reject_memory_drafter(memory, target_id),
+                    "reject_memory": make_reject_memory_drafter(fresh_memory, target_id),
                     **(
                         {"general": drafters["general"]()}
                         if "general" in args.drafters
@@ -214,7 +226,7 @@ def main() -> int:
                 },
                 {e: args.spec_len for e in dag_experts},
                 target_id,
-                memory=memory,
+                memory=fresh_memory,
                 always_on=["copy"],
             )
 
@@ -226,12 +238,31 @@ def main() -> int:
     ][0]
     target.generate_greedy(warm_prompt, 8)
 
+    if args.manifest:
+        manifest_path = Path(args.manifest)
+        if manifest_path.exists():
+            lines = [
+                ln
+                for ln in manifest_path.read_text(encoding="utf-8").splitlines()
+                if ln.strip()
+            ]
+            items = [json.loads(ln) for ln in lines]
+            prompts = [it.get("prompt_text") for it in items if it.get("prompt_text")]
+            if args.max_prompts > 0:
+                prompts = prompts[: args.max_prompts]
+            print(f"manifest: {len(prompts)} prompts from {args.manifest}", flush=True)
+        else:
+            print(f"manifest not found: {args.manifest}", flush=True)
+            return 2
+
     results = {
-        "schema": "familydraft.integrated_speedup.v1",
+        "schema": "familydraft.integrated_speedup.v2",
         "repo": args.repo,
         "prompt_set": args.prompt_set,
+        "manifest": args.manifest or None,
         "max_new_tokens": args.max_new,
         "spec_len": args.spec_len,
+        "runs_per_drafter": args.runs,
         "general_checkpoint": args.general_checkpoint or None,
         "runs": [],
     }
@@ -242,27 +273,40 @@ def main() -> int:
         )["input_ids"][0]
         prompt_list = prompt_ids.tolist()
 
-        vanilla_time = _gpu_time(lambda: target.generate_greedy(prompt_ids, args.max_new))
+        torch.cuda.synchronize()
+        t0 = time.perf_counter()
         vanilla_tokens = target.generate_greedy(prompt_ids, args.max_new)[
             0, len(prompt_list):
         ].tolist()
+        torch.cuda.synchronize()
+        vanilla_time = time.perf_counter() - t0
 
         row = {"prompt": prompt_text[:60], "vanilla_seconds": vanilla_time,
                "tokens": len(vanilla_tokens)}
 
         for name, factory in drafters.items():
-            made = factory()
-            if hasattr(made, "generate"):
-                speculator = made
-            else:
-                speculator = IntegratedSpeculator(target, made, args.spec_len, target_id)
-            spec_time = _gpu_time(lambda: speculator.generate(prompt_list, args.max_new))
-            res = speculator.generate(prompt_list, args.max_new)
-            agree = sum(1 for a, b in zip(res["tokens"], vanilla_tokens) if a == b)
-            row[f"{name}_seconds"] = spec_time
-            row[f"{name}_speedup"] = vanilla_time / max(spec_time, 1e-9)
-            row[f"{name}_tokens_per_round"] = res["tokens_per_round"]
-            row[f"{name}_agreement"] = agree / max(1, len(vanilla_tokens))
+            spec_times, tprs, exact_matches = [], [], []
+            for _ in range(args.runs):
+                made = factory()
+                if hasattr(made, "generate"):
+                    speculator = made
+                else:
+                    speculator = IntegratedSpeculator(target, made, args.spec_len, target_id)
+                torch.cuda.synchronize()
+                t0 = time.perf_counter()
+                res = speculator.generate(prompt_list, args.max_new)
+                torch.cuda.synchronize()
+                spec_times.append(time.perf_counter() - t0)
+                tprs.append(res["tokens_per_round"])
+                exact_matches.append(1 if res["tokens"] == vanilla_tokens else 0)
+            row[f"{name}_seconds_mean"] = _mean(spec_times)
+            row[f"{name}_seconds_std"] = _std(spec_times)
+            row[f"{name}_speedup_mean"] = vanilla_time / max(_mean(spec_times), 1e-9)
+            row[f"{name}_speedup_std"] = _std(
+                [vanilla_time / max(t, 1e-9) for t in spec_times]
+            )
+            row[f"{name}_tokens_per_round"] = _mean(tprs)
+            row[f"{name}_exact_match_rate"] = _mean(exact_matches)
         results["runs"].append(row)
 
     def _avg(key):
@@ -271,10 +315,12 @@ def main() -> int:
 
     results["summary"] = {}
     for name in drafters:
+        speedups = [r[f"{name}_speedup_mean"] for r in results["runs"]]
         results["summary"][name] = {
-            "mean_speedup": _avg(f"{name}_speedup"),
+            "mean_speedup": _avg(f"{name}_speedup_mean"),
+            "speedup_std_between_prompts": _std(speedups),
             "mean_tokens_per_round": _avg(f"{name}_tokens_per_round"),
-            "mean_agreement": _avg(f"{name}_agreement"),
+            "mean_exact_match_rate": _avg(f"{name}_exact_match_rate"),
         }
     results["summary"]["vanilla_ms_per_token"] = (
         1000.0 * sum(r["vanilla_seconds"] for r in results["runs"])

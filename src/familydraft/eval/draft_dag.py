@@ -62,6 +62,10 @@ class DagSpeculator:
         self.memory = memory
         self.always_on = list(always_on or [])
         self.device = next(self.model.parameters()).device
+        eos = getattr(self.model.generation_config, "eos_token_id", None)
+        if isinstance(eos, list):
+            eos = eos[0] if eos else None
+        self._eos = None if eos is None else int(eos)
 
     def _feed(self, past, tokens: list[int]):
         with torch.inference_mode():
@@ -114,15 +118,19 @@ class DagSpeculator:
                 e for e in self.always_on if e in self.experts
             ] + [e for e in decision.expert_subset if e in self.experts and e not in self.always_on]
 
-            def emit_single():
+            def emit_single() -> bool:
                 nonlocal past, logits, ctx_len
                 generated.append(t_next)
+                if t_next == self._eos:
+                    return True
                 past, logits_next = self._feed(past, [t_next])
                 logits = logits_next[-1]
                 ctx_len += 1
+                return False
 
             if decision.abstain or not selected:
-                emit_single()
+                if emit_single():
+                    break
                 continue
 
             proposals: dict[str, list[int]] = {}
@@ -135,7 +143,8 @@ class DagSpeculator:
                 if prop:
                     proposals[e] = prop
             if not proposals:
-                emit_single()
+                if emit_single():
+                    break
                 continue
 
             dag = None
@@ -147,7 +156,8 @@ class DagSpeculator:
 
             verified = self._verify_tree(past, ctx_len, t_next, dag, proposals, selected)
             if verified is None:
-                emit_single()
+                if emit_single():
+                    break
                 continue
             best, per_expert_m, tree_cache = verified
             m, bonus, winner, accepted = best
@@ -159,6 +169,8 @@ class DagSpeculator:
             ctx_len += m + 1
             generated.extend(accepted)
             generated.append(bonus)
+            if bonus == self._eos:
+                break
 
             for e in selected:
                 self.router.update_feedback(
