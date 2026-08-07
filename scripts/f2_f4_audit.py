@@ -6,7 +6,7 @@ documented, not executed here.
 
 F2 checks:
   1. ruff clean on src/tests/scripts (exit 0).
-  2. No `# TODO` / `# FIXME` code comments outside docs/ (case-sensitive comment
+  2. No code comment markers TODO/FIXME outside docs/ (case-sensitive comment
      markers; "plan todo N" docstring references are NOT markers).
   3. No flash-attn imports in src/familydraft/verify/.
   4. Dependency pins: every pyproject dependency resolves in uv.lock.
