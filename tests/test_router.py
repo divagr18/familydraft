@@ -43,6 +43,23 @@ def test_utility_matches_hand_computed_golden() -> None:
     assert u == pytest.approx(expected, abs=1e-9)
 
 
+def test_always_on_draft_cost_is_sunk() -> None:
+    """An always-on expert's draft cost is paid regardless of selection, so its
+    selection utility must count only the marginal verify cost."""
+    r = _router()
+    r.always_on_cost_ms = {"copy": 1.0}
+    r.base["copy"] = 2.0
+    features = make_features(0.0, 0.0, 0.0, 0.0, target_id=0)
+    horizon = r.horizon_for("copy")
+    u = r.utility("copy", features, horizon)
+    expected = 2.0 / (20.0 * horizon)  # draft cost excluded
+    assert u == pytest.approx(expected, abs=1e-9)
+    # without the flag, draft cost counts
+    r.always_on_cost_ms = {}
+    u2 = r.utility("copy", features, horizon)
+    assert u2 < u
+
+
 def test_select_returns_valid_decision() -> None:
     r = _router()
     features = make_features(0.5, 0.5, 0.1, 0.2, target_id=2)
@@ -105,6 +122,27 @@ def test_cold_start_sets_base_from_simulated_acceptance() -> None:
     features = make_features(0.0, 0.0, 0.0, 0.0, target_id=0)
     decision = r.select(features, max_experts=1)
     assert decision.expert_subset[0] == "general"
+
+
+def test_feedback_updates_expected_acceptance() -> None:
+    """Online feedback must move the expected-acceptance level toward realised
+    acceptance (the auditor's point: previously only latency EMAs updated)."""
+    r = _router(expert_names=["general", "macro"], draft_ms={"general": 1.0, "macro": 1.0})
+    r.base = {"general": 1.0, "macro": 1.0}
+    features = make_features(0.0, 0.0, 0.0, 0.0, target_id=0)
+
+    before = r.expected_acceptance("general", features)
+    assert before == pytest.approx(1.0)
+
+    # general realises consistently poor acceptance (0.1) -> base must fall
+    for _ in range(20):
+        r.update_feedback("general", accepted_len=0.1, draft_ms=1.0, first_rejection=1.0)
+    after = r.expected_acceptance("general", features)
+    assert after < 0.9, f"expected acceptance did not track reality: {after}"
+
+    # and selection should flip to macro once general's utility drops
+    decision = r.select(features, max_experts=1)
+    assert decision.expert_subset[0] == "macro"
 
 
 def test_config_file_matches_defaults() -> None:

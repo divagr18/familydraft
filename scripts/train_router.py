@@ -33,6 +33,15 @@ def _load_yaml(path: Path) -> dict:
     return yaml.safe_load(path.read_text(encoding="utf-8"))
 
 
+def _target_id_for(repo: str) -> int:
+    table_path = Path("configs/target_ids.json")
+    if table_path.exists():
+        table = json.loads(table_path.read_text(encoding="utf-8"))
+        if repo in table:
+            return int(table[repo]["id"])
+    return 0
+
+
 def _features_from(text: str, copy_score: float, target_id: int) -> list[float]:
     from familydraft.experts.parse_state import parse_scan
     from familydraft.router.router import make_features
@@ -118,7 +127,7 @@ def main() -> int:
     device = torch.device("cuda")
     tgt = TargetModel.load(args.repo, dtype="bf16")
     tok = tgt.tokenizer
-    target_id = 0
+    target_id = _target_id_for(args.repo)
 
     renderer = build_renderer_from_config(Path("."), tok, tok.vocab_size)
     macro_expert = MacroExpert(renderer, head=None)

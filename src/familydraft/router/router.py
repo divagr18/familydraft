@@ -66,6 +66,7 @@ class UtilityRouter:
         ema_rate: float = 0.2,
         feature_dim: int = 4,
         num_targets: int = 7,
+        always_on_cost_ms: dict[str, float] | None = None,
     ) -> None:
         self.expert_names = list(expert_names)
         self.draft_ms = dict(draft_ms)
@@ -74,6 +75,10 @@ class UtilityRouter:
         self.ema_rate = ema_rate
         self.feature_dim = feature_dim
         self.num_targets = num_targets
+        # Experts whose drafting cost is paid every round regardless of
+        # selection (e.g. copy is always-on): their draft cost is sunk, so
+        # selection utility counts only the marginal verify cost.
+        self.always_on_cost_ms = dict(always_on_cost_ms or {})
         self.base: dict[str, float] = {e: 1.0 for e in expert_names}
         self.weights: dict[str, list[float]] = {
             e: [0.0] * (feature_dim + num_targets) for e in expert_names
@@ -125,7 +130,8 @@ class UtilityRouter:
         return HORIZONS[-1]
 
     def utility(self, expert: str, features: list[float], horizon: int) -> float:
-        cost = self.draft_ms.get(expert, 0.0) + self.verify_ms_per_node * horizon
+        draft = 0.0 if expert in self.always_on_cost_ms else self.draft_ms.get(expert, 0.0)
+        cost = draft + self.verify_ms_per_node * horizon
         if cost <= 0:
             return 0.0
         return self.expected_acceptance(expert, features) / cost
@@ -171,6 +177,10 @@ class UtilityRouter:
         s.draft_ms_ema = (1 - r) * s.draft_ms_ema + r * draft_ms
         s.first_rejection_ema = (1 - r) * s.first_rejection_ema + r * first_rejection
         self.draft_ms[expert] = s.draft_ms_ema
+        # Adapt the expected-acceptance level toward realised acceptance so
+        # selection tracks the live environment (the learned weights model the
+        # feature response; base tracks the realised level).
+        self.base[expert] = (1 - r) * self.base[expert] + r * max(0.0, accepted_len)
 
     def record_overlap(self, a: str, b: str, overlap: float) -> None:
         self.stats[a].overlap[b] = overlap

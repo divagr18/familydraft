@@ -93,6 +93,20 @@ def _verify_curve() -> dict[int, float]:
     return VERIFY_CURVE
 
 
+def _load_router_config() -> dict:
+    import yaml
+
+    cfg_path = Path("configs/router.yaml")
+    if cfg_path.exists():
+        cfg = yaml.safe_load(cfg_path.read_text(encoding="utf-8"))
+        return {
+            "draft_ms": dict(cfg.get("draft_ms", {})),
+            "base_acceptance": dict(cfg.get("base_acceptance", {})),
+            "copy_cost_fixed_ms": float(cfg.get("copy_cost_fixed_ms", 1.0)),
+        }
+    return {}
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", default="Qwen/Qwen3-0.6B")
@@ -188,10 +202,12 @@ def main() -> int:
         dag_experts["reject_memory"] = make_reject_memory_drafter(memory, target_id)
         dag_horizons["reject_memory"] = args.spec_len
 
+        _router_cfg = _load_router_config()
         router_kwargs = dict(
-            draft_ms={e: (10.0 if e == "general" else 1.0) for e in dag_experts},
+            draft_ms=_router_cfg["draft_ms"],
             verify_curve=_verify_curve(),
-            base={e: (3.0 if e == "copy" else 2.0) for e in dag_experts},
+            base=_router_cfg["base_acceptance"],
+            copy_cost_fixed_ms=_router_cfg.get("copy_cost_fixed_ms", 1.0),
         )
 
         def _make_dag_spec():
@@ -204,6 +220,7 @@ def main() -> int:
                 router_kwargs["verify_curve"],
                 router_kwargs["base"],
                 tau_abstain=0.0,  # cold-start router never abstains
+                always_on_cost_ms={"copy": router_kwargs["copy_cost_fixed_ms"]},
             )
             if args.router_weights:
                 from familydraft.router.router import UtilityRouter

@@ -83,12 +83,29 @@ class DagSpeculator:
         state = parse_scan(text)
         return min(len(state.candidates) / 4.0, 1.0)
 
-    def _features(self, context_ids: list[int], copy_score: float) -> list[float]:
+    @staticmethod
+    def _copy_score(context_ids: list[int]) -> float:
+        window = context_ids[-64:]
+        if len(window) < 8:
+            return 0.0
+        last = window[-1]
+        matches = sum(1 for t in window[:-1] if t == last)
+        return min(matches / 8.0, 1.0)
+
+    @staticmethod
+    def _repetition_score(context_ids: list[int]) -> float:
+        window = context_ids[-32:]
+        if len(window) < 8:
+            return 0.0
+        uniq = len(set(window))
+        return 1.0 - uniq / len(window)
+
+    def _features(self, context_ids: list[int]) -> list[float]:
         return make_features(
             0.0,
             self._parser_score(context_ids),
-            copy_score,
-            copy_score,
+            self._repetition_score(context_ids),
+            self._copy_score(context_ids),
             self.target_id,
             self.router.num_targets,
         )
@@ -110,7 +127,7 @@ class DagSpeculator:
             t_next = int(torch.argmax(logits, dim=-1))
             context_ids = prompt_ids + generated
 
-            feats = self._features(context_ids, 0.0)
+            feats = self._features(context_ids)
             decision = self.router.select(feats)
             # always_on experts (cheap structural ones) always propose; the
             # router only decides which ADDITIONAL experts to activate.
@@ -307,12 +324,14 @@ def build_dag_router(
     verify_ms_by_nodes: dict[int, float],
     base_acceptance: dict[str, float],
     tau_abstain: float = 0.05,
+    always_on_cost_ms: dict[str, float] | None = None,
 ) -> UtilityRouter:
     router = UtilityRouter(
         expert_names=expert_names,
         draft_ms=draft_ms,
         verify_ms_by_nodes=verify_ms_by_nodes,
         tau_abstain=tau_abstain,
+        always_on_cost_ms=always_on_cost_ms,
     )
     router.cold_start(base_acceptance)
     return router

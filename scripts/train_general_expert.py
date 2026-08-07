@@ -121,6 +121,11 @@ def main() -> int:
         print("train_general_expert: no distillation records found", flush=True)
         return 2
 
+    # Shards are written per task class (gen_train_data.py), so a tail split
+    # would put the holdout entirely inside one class. Shuffle with the cfg
+    # seed so both splits are class-mixed (audit: holdout was class-ordered).
+    random.Random(cfg["seed"]).shuffle(records)
+
     label_smoothing = (
         cfg["label_smoothing_top2"] if cfg["mcl"] == "top2" else cfg["label_smoothing_top1"]
     )

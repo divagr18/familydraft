@@ -1,4 +1,10 @@
 # Utility router v1 configuration (plan todo 19).
+#
+# draft_ms: measured per-expert drafting cost in ms (update from profiling;
+# copy/reject_memory are cheap structural drafters, general is a trunk rollout).
+# base_acceptance: cold-start expected accepted tokens per round per expert.
+# copy_cost_fixed_ms: copy is always-on; its cost is paid every round whether
+# the router selects it or not, so the router accounts for it separately.
 
 tau_abstain: 0.05
 ema_rate: 0.2
@@ -9,3 +15,14 @@ experts:
   - macro
   - copy
   - reject_memory
+draft_ms:
+  general: 10.0
+  macro: 1.0
+  copy: 1.0
+  reject_memory: 0.5
+base_acceptance:
+  general: 2.0
+  macro: 2.0
+  copy: 3.0
+  reject_memory: 0.4
+copy_cost_fixed_ms: 1.0
