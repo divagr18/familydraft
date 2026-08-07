@@ -158,10 +158,13 @@ class UtilityRouter:
         """Offline initialisation from simulated acceptance (todo-10 replay).
 
         Sets the bandit base utility from measured per-expert acceptance so the
-        router is functional before any live rollout. Runtime behaviour then
-        adapts online from feedback.
+        router is functional before any live rollout. accepted_len_ema is seeded
+        at 1.0 (minimal horizon) rather than the base value, so cold-start
+        selection is driven by expected quality (base), not by an inflated
+        horizon that would make high-base experts look expensive and get skipped.
+        Runtime behaviour then adapts online from feedback.
         """
         for expert, acc in acceptance_by_expert.items():
             if expert in self.base:
                 self.base[expert] = max(0.0, float(acc))
-                self.stats[expert].accepted_len_ema = max(0.1, float(acc))
+                self.stats[expert].accepted_len_ema = 1.0

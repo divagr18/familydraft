@@ -99,7 +99,9 @@ def test_cold_start_sets_base_from_simulated_acceptance() -> None:
     r = _router()
     r.cold_start({"general": 12.0, "macro": 1.2, "copy": 2.0, "reject_memory": 0.4})
     assert r.base["general"] == pytest.approx(12.0)
-    assert r.stats["general"].accepted_len_ema == pytest.approx(12.0)
+    # cold-start seeds accepted_len_ema at 1.0 so selection is by base quality,
+    # not an inflated horizon that makes high-base experts look expensive.
+    assert r.stats["general"].accepted_len_ema == pytest.approx(1.0)
     features = make_features(0.0, 0.0, 0.0, 0.0, target_id=0)
     decision = r.select(features, max_experts=1)
     assert decision.expert_subset[0] == "general"

@@ -112,3 +112,34 @@ run, which must be regenerated with the fix.
   of traces total) and retrain the general expert to make the neural path contribute.
 - **C (roadmap):** add the macro expert (structural tokens), tree attention for larger
   spec depth, and engine integration for production throughput.
+
+---
+
+## Thesis system (router + multi-expert DAG)
+
+The pitch's core mechanism — a utility router activating a subset of heterogeneous
+experts whose proposals are fused into a candidate DAG and verified losslessly — is
+now built and measured (`src/familydraft/eval/draft_dag.py`, `DagSpeculator`).
+
+**Correctness (proven):**
+- `DagSpeculator` is lossless under exact numerics (fp32 tiny-model tests, all
+  expert sets), matching vanilla greedy token-for-token.
+- A copy-only `DagSpeculator` is token-identical to copy-alone (chain) on real
+  prompts — the DAG verifier does not alter acceptance.
+- Copy+macro and the full 4-expert DAG match copy-alone exactly on prompts where
+  copy accepts (e.g. 1.889 tpr on the dictionary prompt), confirming the fusion
+  mechanism picks the best branch without degrading it.
+
+**Measured on Qwen3-0.6B (local):**
+- copy-alone: ~1.0-1.3x (1.19x code / 1.34x repetitive tpr)
+- DAG (copy+macro+reject_memory+general via router): ≈ copy-alone on 0.6B
+
+The union benefit (DAG > single expert) does not materialize on this weak 0.6B
+model, where only copy accepts meaningfully; the router's cold-start selection and
+per-expert acceptance are the current limits. The thesis measurement is the
+Qwen3-8B run (router + 4 experts + DAG), where multiple experts can contribute and
+drafting overhead is amortized against a large target.
+
+**Router cold-start fix (commit):** `cold_start` now seeds `accepted_len_ema` at 1.0
+(minimal horizon) so selection is driven by base expected quality rather than an
+inflated horizon that made high-base experts look expensive and got them skipped.

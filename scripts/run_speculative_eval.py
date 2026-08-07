@@ -78,6 +78,18 @@ def _target_id_for(repo: str) -> int:
     return 0
 
 
+# Fallback verification cost curve (matches runs/microbench/cost_curve.json).
+VERIFY_CURVE = {1: 117.0, 2: 187.0, 4: 298.0, 8: 538.0, 16: 1041.0, 32: 2032.0, 64: 4040.0}
+
+
+def _verify_curve() -> dict[int, float]:
+    path = Path("runs/microbench/cost_curve.json")
+    if path.exists():
+        record = json.loads(path.read_text(encoding="utf-8"))
+        return {int(k): float(v) for k, v in record.get("verify_ms_by_nodes", {}).items()}
+    return VERIFY_CURVE
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", default="Qwen/Qwen3-0.6B")
@@ -87,6 +99,9 @@ def main() -> int:
     parser.add_argument("--prompt-set", default="code", choices=sorted(PROMPT_SETS))
     parser.add_argument("--max-prompts", type=int, default=0)
     parser.add_argument("--general-checkpoint", default="")
+    parser.add_argument(
+        "--dag", action="store_true", help="run the full router+multi-expert DAG system"
+    )
     parser.add_argument("--out", default="runs/results/integrated_speedup.json")
     args = parser.parse_args()
 
@@ -127,6 +142,74 @@ def main() -> int:
             expert, args.spec_len, target_id, device
         )
 
+    if args.dag:
+        from familydraft.eval.draft_dag import (
+            DagSpeculator,
+            build_dag_router,
+            make_macro_drafter,
+            make_reject_memory_drafter,
+        )
+        from familydraft.experts.macro import MacroExpert
+        from familydraft.experts.macro_render import build_renderer_from_config
+        from familydraft.experts.reject_memory import RejectionMemory
+
+        tok = target.tokenizer
+        renderer = build_renderer_from_config(Path("."), tok, tok.vocab_size)
+        macro_expert = MacroExpert(renderer, head=None)
+        memory = RejectionMemory(min_support=1)
+        dag_experts: dict = {}
+        dag_horizons: dict = {}
+        if "copy" in args.drafters:
+            dag_experts["copy"] = make_copy_drafter(copy_expert, args.spec_len)
+            dag_horizons["copy"] = args.spec_len
+        if "general" in args.drafters:
+            dag_experts["general"] = make_general_drafter(
+                expert, args.spec_len, target_id, device
+            )
+            dag_horizons["general"] = args.spec_len
+        dag_experts["macro"] = make_macro_drafter(macro_expert, tok)
+        dag_horizons["macro"] = args.spec_len
+        dag_experts["reject_memory"] = make_reject_memory_drafter(memory, target_id)
+        dag_horizons["reject_memory"] = args.spec_len
+
+        router_kwargs = dict(
+            draft_ms={e: (10.0 if e == "general" else 1.0) for e in dag_experts},
+            verify_curve=_verify_curve(),
+            base={e: (3.0 if e == "copy" else 2.0) for e in dag_experts},
+        )
+
+        def _make_dag_spec():
+            # Build a fresh speculator per prompt so router feedback does not
+            # accumulate across prompts (mirrors the chain's fresh-per-prompt
+            # measurement).
+            router = build_dag_router(
+                list(dag_experts.keys()),
+                router_kwargs["draft_ms"],
+                router_kwargs["verify_curve"],
+                router_kwargs["base"],
+                tau_abstain=0.01,
+            )
+            return DagSpeculator(
+                target,
+                router,
+                {
+                    "copy": make_copy_drafter(CopyExpert(seed=4, min_length=3), args.spec_len),
+                    "macro": make_macro_drafter(macro_expert, tok),
+                    "reject_memory": make_reject_memory_drafter(memory, target_id),
+                    **(
+                        {"general": drafters["general"]()}
+                        if "general" in args.drafters
+                        else {}
+                    ),
+                },
+                {e: args.spec_len for e in dag_experts},
+                target_id,
+                memory=memory,
+            )
+
+        drafters["dag"] = _make_dag_spec
+        print("dag system: router over", list(dag_experts.keys()), flush=True)
+
     warm_prompt = target.tokenizer("def f():", return_tensors="pt", add_special_tokens=False)[
         "input_ids"
     ][0]
@@ -157,7 +240,11 @@ def main() -> int:
                "tokens": len(vanilla_tokens)}
 
         for name, factory in drafters.items():
-            speculator = IntegratedSpeculator(target, factory(), args.spec_len, target_id)
+            made = factory()
+            if hasattr(made, "generate"):
+                speculator = made
+            else:
+                speculator = IntegratedSpeculator(target, made, args.spec_len, target_id)
             spec_time = _gpu_time(lambda: speculator.generate(prompt_list, args.max_new))
             res = speculator.generate(prompt_list, args.max_new)
             agree = sum(1 for a, b in zip(res["tokens"], vanilla_tokens) if a == b)
