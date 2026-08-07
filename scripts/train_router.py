@@ -120,13 +120,35 @@ def main() -> int:
         gen.load_state_dict(torch.load(args.general_checkpoint, map_location=device))
         experts["general"] = make_general_drafter(gen, HORIZON, target_id, device)
 
-    # Load training prompts (reuse the trace schema: each row has prompt_ids).
+    # Load training prompts: --prompts may be a traces jsonl (rows with
+    # prompt_ids), a plain {"prompt_text": ...} jsonl, or a directory of either.
     prompts_path = Path(args.prompts)
-    rows = []
-    if prompts_path.exists():
-        with prompts_path.open(encoding="utf-8") as handle:
-            rows = [json.loads(line) for line in handle if line.strip()]
-    prompt_lists = [r["prompt_ids"] for r in rows[: args.n_prompts]]
+    files = sorted(prompts_path.glob("*.jsonl")) if prompts_path.is_dir() else [prompts_path]
+    rows: list[dict] = []
+    for f in files:
+        if not f.exists():
+            continue
+        with f.open(encoding="utf-8") as handle:
+            rows.extend(json.loads(line) for line in handle if line.strip())
+
+    prompt_lists: list[list[int]] = []
+    for r in rows[: args.n_prompts]:
+        if "prompt_ids" in r:
+            prompt_lists.append(r["prompt_ids"])
+        elif "prompt_text" in r:
+            prompt_lists.append(
+                tok(r["prompt_text"], return_tensors="pt", add_special_tokens=False)[
+                    "input_ids"
+                ][0].tolist()
+            )
+    if not prompt_lists:
+        print(
+            f"train_router: no prompts found under {prompts_path}. The traces "
+            "live on the RunPod network volume (runs/traces_train/ is gitignored), "
+            "or run trace generation first. Aborting.",
+            flush=True,
+        )
+        return 3
     print(f"training prompts: {len(prompt_lists)}", flush=True)
 
     X: list[list[float]] = []
