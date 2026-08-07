@@ -23,11 +23,20 @@ export HF_HOME="${HF_HOME:-/workspace/hf-cache}"
 REPO="${REPO:-Qwen/Qwen3-8B}"
 PER_CLASS="${PER_CLASS:-100}"
 CLASSES="${CLASSES:-code,chat,structured,math}"
-STEPS="${STEPS:-3000}"
+STEPS="${STEPS:-4000}"
 SPEC_LEN="${SPEC_LEN:-8}"
 TARGET_ID="${TARGET_ID:-2}"
-WORKERS="${WORKERS:-2}"
-BATCH="${BATCH:-8}"
+
+# Adaptive worker/batch defaults by GPU VRAM (override with env).
+VRAM_GB="$(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits 2>/dev/null | head -1 | tr -d ' ')"
+: "${VRAM_GB:=0}"
+if [ "${VRAM_GB}" -ge 40000 ]; then
+  WORKERS="${WORKERS:-2}"; BATCH="${BATCH:-8}"
+elif [ "${VRAM_GB}" -ge 24000 ]; then
+  WORKERS="${WORKERS:-1}"; BATCH="${BATCH:-4}"
+else
+  WORKERS="${WORKERS:-1}"; BATCH="${BATCH:-2}"
+fi
 
 echo "[train_8b] repo=$REPO per_class=$PER_CLASS classes=$CLASSES steps=$STEPS workers=$WORKERS batch=$BATCH"
 
