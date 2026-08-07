@@ -53,8 +53,14 @@ class TargetVariantEmbedding(nn.Module):
         )
         self.residual = nn.Embedding(attributes.shape[0], hidden)
         nn.init.zeros_(self.residual.weight)
+        self.enabled = True
 
     def forward(self, target_id: int) -> torch.Tensor:
+        if not self.enabled:
+            dtype = self.mlp[0].weight.dtype
+            return torch.zeros(
+                self.residual.embedding_dim, device=self.attributes.device, dtype=dtype
+            )
         if target_id < 0 or target_id >= self.attributes.shape[0]:
             raise KeyError(self._valid_message(target_id))
         attr = self.attributes[target_id]

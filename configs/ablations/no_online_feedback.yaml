@@ -1,0 +1,12 @@
+# Ablation: no online feedback (concept note §10.4, plan todo 22).
+# Freezes the router at its cold-start state - no online EMAs or base
+# adaptation from observed acceptance.
+
+name: no_online_feedback
+description: "Online router feedback disabled (no_online_feedback=true) - cold-start router only."
+overrides:
+  max_experts: 2
+  routing_mode: utility
+  tree_verify: true
+  no_target_embedding: false
+  no_online_feedback: true

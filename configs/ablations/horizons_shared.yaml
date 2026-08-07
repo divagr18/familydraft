@@ -1,0 +1,13 @@
+# Ablation: shared draft horizon vs expert-specific horizons
+# (concept note §10.4, plan todo 22). Uses one horizon value for every expert
+# instead of per-expert horizons.
+
+name: horizons_shared
+description: "Shared draft horizon for all experts (vs expert-specific horizons)."
+overrides:
+  max_experts: 2
+  routing_mode: utility
+  tree_verify: true
+  shared_horizons: true
+  no_target_embedding: false
+  no_online_feedback: false

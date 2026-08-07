@@ -145,9 +145,45 @@ def test_feedback_updates_expected_acceptance() -> None:
     assert decision.expert_subset[0] == "macro"
 
 
+def test_acceptance_routing_ignores_cost() -> None:
+    """routing_mode='acceptance' must rank purely by expected acceptance, not
+    by draft/verify cost (the acceptance-vs-utility ablation switch)."""
+    r = _router(expert_names=["general", "macro"], draft_ms={"general": 1000.0, "macro": 1.0})
+    r.base = {"general": 2.0, "macro": 1.0}
+    r.routing_mode = "acceptance"
+    features = make_features(0.0, 0.0, 0.0, 0.0, target_id=0)
+    # general is expensive to draft but has higher acceptance; under
+    # acceptance routing the cost must not discount it.
+    assert r.utility("general", features, r.horizon_for("general")) > r.utility(
+        "macro", features, r.horizon_for("macro")
+    )
+    decision = r.select(features, max_experts=1)
+    assert decision.expert_subset[0] == "general"
+
+
+def test_routing_mode_validation() -> None:
+    with pytest.raises(ValueError):
+        _router(routing_mode="bogus")
+
+
 def test_config_file_matches_defaults() -> None:
     cfg_path = Path(__file__).parent.parent / "configs" / "router.yaml"
     cfg = yaml.safe_load(cfg_path.read_text("utf-8"))
     assert cfg["horizons"] == [2, 4, 6, 8]
     assert cfg["max_experts"] == 2
     assert cfg["experts"] == ["general", "macro", "copy", "reject_memory"]
+
+
+def test_pre_registered_ablations_load() -> None:
+    """All 12 pre-registered ablation configs (M3) must load and carry a valid
+    overrides dict consumable by scripts/run_baselines.py --ablation."""
+    ablations_dir = Path(__file__).parent.parent / "configs" / "ablations"
+    assert ablations_dir.is_dir(), "configs/ablations missing"
+    configs = sorted(ablations_dir.glob("*.yaml"))
+    assert len(configs) == 12, f"expected 12 ablation configs, found {len(configs)}"
+    for path in configs:
+        cfg = yaml.safe_load(path.read_text("utf-8"))
+        assert cfg["name"] == path.stem, f"{path.name}: name != filename stem"
+        assert isinstance(cfg.get("overrides"), dict), f"{path.name}: missing overrides"
+        assert "max_experts" in cfg["overrides"] or "routing_mode" in cfg["overrides"] or \
+            "tree_verify" in cfg["overrides"], f"{path.name}: no routing/fusion override"

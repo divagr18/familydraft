@@ -1,0 +1,12 @@
+# Ablation: no rejection memory (concept note §10.4, plan todo 22).
+# Disables the rejection-memory expert entirely (memory=None).
+
+name: no_rejection_memory
+description: "Rejection-memory expert disabled (memory=None)."
+overrides:
+  max_experts: 2
+  routing_mode: utility
+  tree_verify: true
+  no_target_embedding: false
+  no_online_feedback: false
+  no_rejection_memory: true

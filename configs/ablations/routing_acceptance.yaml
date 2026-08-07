@@ -1,0 +1,12 @@
+# Ablation: acceptance-based routing vs latency-utility routing
+# (concept note §10.4, plan todo 22). Ignores draft/verify cost entirely;
+# selects purely on expected acceptance.
+
+name: routing_acceptance
+description: "Acceptance-only routing (routing_mode=acceptance) - no latency utility term."
+overrides:
+  max_experts: 2
+  routing_mode: acceptance
+  tree_verify: true
+  no_target_embedding: false
+  no_online_feedback: false

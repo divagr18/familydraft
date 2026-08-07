@@ -173,7 +173,8 @@ def _chain_factory(args, target, device, target_id):
 
 
 def _dag_factory(
-    args, target, device, target_id, with_general, always_on, max_experts, tree_verify
+    args, target, device, target_id, with_general, always_on, max_experts, tree_verify,
+    ablation: dict | None = None,
 ):
     from familydraft.eval.draft_dag import (
         DagSpeculator,
@@ -187,6 +188,16 @@ def _dag_factory(
     from familydraft.experts.macro import MacroExpert
     from familydraft.experts.macro_render import build_renderer_from_config
     from familydraft.experts.reject_memory import RejectionMemory
+
+    ov = ablation or {}
+    max_experts = int(ov.get("max_experts", max_experts))
+    tree_verify = bool(ov.get("tree_verify", tree_verify))
+    routing_mode = str(ov.get("routing_mode", "utility"))
+    tau_abstain = float(ov.get("tau_abstain", 0.0))
+    no_target_embedding = bool(ov.get("no_target_embedding", False))
+    no_online_feedback = bool(ov.get("no_online_feedback", False))
+    no_rejection_memory = bool(ov.get("no_rejection_memory", False))
+    load_router_weights = bool(ov.get("load_router_weights", True))
 
     tok = target.tokenizer
     renderer = build_renderer_from_config(Path("."), tok, tok.vocab_size)
@@ -203,6 +214,8 @@ def _dag_factory(
         general_expert = expert
 
     names = ["copy", "macro", "reject_memory"] + (["general"] if general_expert else [])
+    if no_rejection_memory:
+        names = [n for n in names if n != "reject_memory"]
 
     def make():
         router = build_dag_router(
@@ -210,19 +223,21 @@ def _dag_factory(
             {e: cfg.get("draft_ms", {}).get(e, 1.0) for e in names},
             _verify_curve(),
             {e: cfg.get("base_acceptance", {}).get(e, 1.0) for e in names},
-            tau_abstain=0.0,
+            tau_abstain=tau_abstain,
             always_on_cost_ms={"copy": cfg.get("copy_cost_fixed_ms", 1.0)},
+            routing_mode=routing_mode,
         )
-        if args.router_weights:
+        if load_router_weights and args.router_weights:
             from familydraft.router.router import UtilityRouter
 
             router.set_weights(UtilityRouter.load_weights(args.router_weights))
-        memory = RejectionMemory(min_support=1)
+        memory = None if no_rejection_memory else RejectionMemory(min_support=1)
         dag_experts = {
             "copy": make_copy_drafter(CopyExpert(seed=4, min_length=3), args.spec_len),
             "macro": make_macro_drafter(macro_expert, tok),
-            "reject_memory": make_reject_memory_drafter(memory, target_id),
         }
+        if not no_rejection_memory:
+            dag_experts["reject_memory"] = make_reject_memory_drafter(memory, target_id)
         if general_expert is not None:
             dag_experts["general"] = make_general_drafter(
                 general_expert, args.spec_len, target_id, device
@@ -237,6 +252,8 @@ def _dag_factory(
             always_on=always_on,
             max_experts=max_experts,
             tree_verify=tree_verify,
+            no_target_embedding=no_target_embedding,
+            no_online_feedback=no_online_feedback,
         )
 
     return make
@@ -277,7 +294,23 @@ def main() -> int:
     parser.add_argument("--router-weights", default="")
     parser.add_argument("--runs", type=int, default=5)
     parser.add_argument("--out", default="")
+    parser.add_argument(
+        "--ablation",
+        default="",
+        help="pre-registered ablation config name (configs/ablations/<name>.yaml)",
+    )
     args = parser.parse_args()
+
+    ablation = {}
+    if args.ablation:
+        import yaml
+
+        ab_path = Path("configs/ablations") / f"{args.ablation}.yaml"
+        if not ab_path.exists():
+            print(f"run_baselines: unknown ablation {args.ablation!r} ({ab_path})", flush=True)
+            return 2
+        ablation = yaml.safe_load(ab_path.read_text(encoding="utf-8")).get("overrides", {})
+        print(f"run_baselines: ablation {args.ablation}: {ablation}", flush=True)
 
     if not torch.cuda.is_available():
         print("run_baselines: CUDA GPU unavailable.", flush=True)
@@ -317,6 +350,7 @@ def main() -> int:
         factory = _dag_factory(
             args, target, device, target_id, with_general=bool(args.general_checkpoint),
             always_on=always_on, max_experts=max_experts, tree_verify=tree_verify,
+            ablation=ablation,
         )
 
     warm_ids = target.tokenizer(

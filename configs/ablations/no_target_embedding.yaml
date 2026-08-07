@@ -1,0 +1,12 @@
+# Ablation: no target embedding (concept note §10.4, plan todo 22).
+# Zeroes the target-variant embedding on trunk-backed experts so the drafter
+# sees no target identity (vs the target-variant embedding default).
+
+name: no_target_embedding
+description: "Target-variant embedding disabled (no_target_embedding=true)."
+overrides:
+  max_experts: 2
+  routing_mode: utility
+  tree_verify: true
+  no_target_embedding: true
+  no_online_feedback: false

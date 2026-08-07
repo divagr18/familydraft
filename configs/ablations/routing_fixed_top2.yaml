@@ -1,0 +1,11 @@
+# Ablation: routing fixed top-2 (concept note §10.4, plan todo 22).
+# Switches the variable-k utility router to a fixed two-expert selection.
+
+name: routing_fixed_top2
+description: "Router restricted to exactly two experts (fixed top-2) vs the variable-k default."
+overrides:
+  max_experts: 2
+  routing_mode: utility
+  tree_verify: true
+  no_target_embedding: false
+  no_online_feedback: false

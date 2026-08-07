@@ -1,0 +1,12 @@
+# Ablation: no abstention (concept note §10.4, plan todo 22).
+# Forces tau_abstain=0 so the router never abstains (vs the default 0.05).
+
+name: no_abstention
+description: "Router abstention disabled (tau_abstain=0)."
+overrides:
+  max_experts: 2
+  routing_mode: utility
+  tree_verify: true
+  no_target_embedding: false
+  no_online_feedback: false
+  tau_abstain: 0.0

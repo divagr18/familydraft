@@ -1,0 +1,13 @@
+# Ablation: no rollout policy (concept note §10.4, plan todo 22).
+# Uses only the cold-start router (base acceptance, no learned weights).
+# The full system loads configs/router_weights*.json; this ablation does not.
+
+name: no_rollout
+description: "Cold-start router only - no learned rollout weights."
+overrides:
+  max_experts: 2
+  routing_mode: utility
+  tree_verify: true
+  no_target_embedding: false
+  no_online_feedback: false
+  load_router_weights: false

@@ -67,6 +67,7 @@ class UtilityRouter:
         feature_dim: int = 4,
         num_targets: int = 7,
         always_on_cost_ms: dict[str, float] | None = None,
+        routing_mode: str = "utility",
     ) -> None:
         self.expert_names = list(expert_names)
         self.draft_ms = dict(draft_ms)
@@ -75,6 +76,13 @@ class UtilityRouter:
         self.ema_rate = ema_rate
         self.feature_dim = feature_dim
         self.num_targets = num_targets
+        # "utility" divides expected acceptance by cost; "acceptance" ignores
+        # cost entirely (the acceptance-routing vs latency-utility ablation).
+        if routing_mode not in ("utility", "acceptance"):
+            raise ValueError(
+                f"routing_mode must be 'utility' or 'acceptance', got {routing_mode!r}"
+            )
+        self.routing_mode = routing_mode
         # Experts whose drafting cost is paid every round regardless of
         # selection (e.g. copy is always-on): their draft cost is sunk, so
         # selection utility counts only the marginal verify cost.
@@ -130,6 +138,8 @@ class UtilityRouter:
         return HORIZONS[-1]
 
     def utility(self, expert: str, features: list[float], horizon: int) -> float:
+        if self.routing_mode == "acceptance":
+            return self.expected_acceptance(expert, features)
         draft = 0.0 if expert in self.always_on_cost_ms else self.draft_ms.get(expert, 0.0)
         cost = draft + self.verify_ms_per_node * horizon
         if cost <= 0:

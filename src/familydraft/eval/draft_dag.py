@@ -54,6 +54,8 @@ class DagSpeculator:
         always_on: list[str] | None = None,
         max_experts: int = 2,
         tree_verify: bool = True,
+        no_target_embedding: bool = False,
+        no_online_feedback: bool = False,
     ) -> None:
         self.model = target_model.model
         self.tokenizer = target_model.tokenizer
@@ -65,7 +67,17 @@ class DagSpeculator:
         self.always_on = list(always_on or [])
         self.max_experts = max_experts
         self.tree_verify = tree_verify
+        self.no_target_embedding = no_target_embedding
+        self.no_online_feedback = no_online_feedback
         self.device = next(self.model.parameters()).device
+        if no_target_embedding:
+            # Ablation: zero the target-variant embedding on every trunk-backed
+            # expert so the drafter sees no target identity.
+            for e in self.experts.values():
+                trunk = getattr(e, "trunk", None)
+                tv = getattr(trunk, "target_variant", None)
+                if tv is not None:
+                    tv.enabled = False
         eos = getattr(self.model.generation_config, "eos_token_id", None)
         if isinstance(eos, list):
             eos = eos[0] if eos else None
@@ -204,13 +216,14 @@ class DagSpeculator:
             if bonus == self._eos:
                 break
 
-            for e in selected:
-                self.router.update_feedback(
-                    e,
-                    accepted_len=float(per_expert_m.get(e, 0)),
-                    draft_ms=0.5,
-                    first_rejection=float(per_expert_m.get(e, 0) + 1),
-                )
+            if not self.no_online_feedback:
+                for e in selected:
+                    self.router.update_feedback(
+                        e,
+                        accepted_len=float(per_expert_m.get(e, 0)),
+                        draft_ms=0.5,
+                        first_rejection=float(per_expert_m.get(e, 0) + 1),
+                    )
             self._maybe_record_rejection(context_ids, corrections)
 
         return {
@@ -372,6 +385,7 @@ def build_dag_router(
     base_acceptance: dict[str, float],
     tau_abstain: float = 0.05,
     always_on_cost_ms: dict[str, float] | None = None,
+    routing_mode: str = "utility",
 ) -> UtilityRouter:
     router = UtilityRouter(
         expert_names=expert_names,
@@ -379,6 +393,7 @@ def build_dag_router(
         verify_ms_by_nodes=verify_ms_by_nodes,
         tau_abstain=tau_abstain,
         always_on_cost_ms=always_on_cost_ms,
+        routing_mode=routing_mode,
     )
     router.cold_start(base_acceptance)
     return router

@@ -1,0 +1,12 @@
+# Ablation: fixed top-2 without fusion (concept note §10.4, plan todo 22).
+# Combines the routing and fusion switches: exactly two experts, per-branch
+# sequential verification, no tree fusion.
+
+name: fixed_top2_no_fusion
+description: "Fixed top-2 routing AND no candidate fusion (combined ablation)."
+overrides:
+  max_experts: 2
+  routing_mode: utility
+  tree_verify: false
+  no_target_embedding: false
+  no_online_feedback: false
