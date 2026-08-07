@@ -460,6 +460,7 @@ def main() -> int:
         "system": args.system,
         "task_class": args.task_class,
         "repo": args.repo,
+        "ablation": args.ablation,
         "target_tokens_per_second": tps,
         "mean": tps,
         "std": tps_std,
@@ -487,9 +488,10 @@ def main() -> int:
         "tokens_per_round": _mean(tprs) if tprs else 1.0,
     }
 
-    out_path = Path(args.out) if args.out else (
-        Path("runs/baselines") / f"{args.system}_{args.task_class}.json"
-    )
+    out_name = f"{args.system}_{args.task_class}.json"
+    if args.ablation:
+        out_name = f"abl_{args.ablation}_{args.task_class}.json"
+    out_path = Path(args.out) if args.out else (Path("runs/baselines") / out_name)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
     print(json.dumps(report, indent=2))

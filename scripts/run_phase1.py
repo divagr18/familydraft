@@ -29,6 +29,7 @@ OUT_CSV = Path("runs/results/phase1.csv")
 CSV_COLUMNS = [
     "system",
     "task_class",
+    "ablation",
     "repo",
     "target_tokens_per_second",
     "std",
@@ -171,7 +172,11 @@ def main() -> int:
             return 2
         reports.append(report)
 
-    present = {(r["system"], r["task_class"]) for r in reports}
+    present = {
+        (r["system"], r["task_class"])
+        for r in reports
+        if not r.get("ablation")  # ablation rows must not mask a missing baseline row
+    }
     missing = [
         (s, tc)
         for s in systems
@@ -203,6 +208,7 @@ def main() -> int:
             writer.writerow({
                 "system": r["system"],
                 "task_class": r["task_class"],
+                "ablation": r.get("ablation", ""),
                 "repo": r.get("repo", ""),
                 "target_tokens_per_second": r["target_tokens_per_second"],
                 "std": r.get("std", 0.0),
