@@ -168,6 +168,38 @@ def test_dag_second_branch_winner_real_model_deterministic(qwen_target) -> None:
 
 
 @pytest.mark.skipif(not CUDA, reason="requires a CUDA GPU")
+def test_dag_rejection_memory_records_real_bonus(tiny_target) -> None:
+    """A partially-rejected proposal must store the target's actual next token
+    (per-branch bonus) as the correction, not an empty replacement."""
+    from familydraft.experts.reject_memory import RejectionMemory
+
+    pids = _pids(tiny_target.tokenizer, REPETITIVE)
+    vanilla = _greedy(tiny_target.model, tiny_target.tokenizer, REPETITIVE, 20)
+
+    def half_wrong_draft(context_ids):
+        return [vanilla[0], (vanilla[1] + 1) % 151936, 5, 6]
+
+    memory = RejectionMemory(min_support=1)
+    router = _make_router(["bad"], {2: 40.0, 66: 1320.0})
+    spec = DagSpeculator(
+        tiny_target,
+        router,
+        {"bad": half_wrong_draft},
+        {"bad": 4},
+        memory=memory,
+        always_on=["bad"],
+    )
+    res = spec.generate(pids, 12)
+    assert res["tokens"] == vanilla[:12]
+    assert memory.size > 0, "no rejection recorded"
+    entry = next(iter(memory._store.values()))
+    assert len(entry.replacement) == 1, f"replacement should be the bonus, got {entry.replacement}"
+    assert entry.replacement[0] == vanilla[1], (
+        f"recorded replacement {entry.replacement[0]} != actual bonus {vanilla[1]}"
+    )
+
+
+@pytest.mark.skipif(not CUDA, reason="requires a CUDA GPU")
 def test_dag_multi_expert_matches_vanilla(tiny_target) -> None:
     vanilla = _greedy(tiny_target.model, tiny_target.tokenizer, REPETITIVE, 20)
     experts = _experts_for(tiny_target, ["copy", "macro"])

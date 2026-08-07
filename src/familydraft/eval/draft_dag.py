@@ -128,7 +128,7 @@ class DagSpeculator:
                 ctx_len += 1
                 return False
 
-            if decision.abstain or not selected:
+            if not selected:
                 if emit_single():
                     break
                 continue
@@ -159,7 +159,7 @@ class DagSpeculator:
                 if emit_single():
                     break
                 continue
-            best, per_expert_m = verified
+            best, per_expert_m, corrections = verified
             m, bonus, winner, accepted = best
             accepted_tokens += m
 
@@ -183,7 +183,7 @@ class DagSpeculator:
                     draft_ms=0.5,
                     first_rejection=float(per_expert_m.get(e, 0) + 1),
                 )
-            self._maybe_record_rejection(context_ids, winner, per_expert_m, proposals)
+            self._maybe_record_rejection(context_ids, corrections)
 
         return {
             "tokens": generated[:max_new_tokens],
@@ -234,7 +234,10 @@ class DagSpeculator:
             return None
 
         pos = [ctx_len + d - 1 for d in depth]
-        mask = torch.full((1, 1, N, ctx_len + N), NEG, dtype=torch.bfloat16, device=self.device)
+        mask_dtype = next(self.model.parameters()).dtype
+        mask = torch.full(
+            (1, 1, N, ctx_len + N), NEG, dtype=mask_dtype, device=self.device
+        )
         mask[:, :, :, :ctx_len] = 0
         for i in range(N):
             mask[:, :, i, ctx_len + i] = 0
@@ -257,6 +260,7 @@ class DagSpeculator:
 
         best = None
         per_expert_m: dict[str, int] = {}
+        corrections: dict[str, tuple[list[int], int]] = {}
         for branch in dag.branches():
             K = len(branch)
             if branch[0] != t_next:
@@ -278,20 +282,23 @@ class DagSpeculator:
                     bonus = int(torch.argmax(lg[row_by_id[last_node]], dim=-1))
             src = self._branch_source(branch, proposals, selected)
             per_expert_m[src] = max(per_expert_m.get(src, 0), m)
+            if m < K and src:
+                corrections[src] = (list(branch[:m]), int(bonus))
             if best is None or m > best[0]:
                 best = (m, bonus, src, list(branch[:m]))
-        return best, per_expert_m
+        return best, per_expert_m, corrections
 
-    def _maybe_record_rejection(self, context_ids, winner, per_expert_m, proposals) -> None:
+    def _maybe_record_rejection(self, context_ids, corrections) -> None:
         if self.memory is None:
             return
-        for e, m in per_expert_m.items():
-            if m < len(proposals.get(e, [])):
-                fingerprint = (tuple(context_ids[-8:]), "any", str(self.target_id), "greedy")
-                try:
-                    self.memory.record_rejection(fingerprint, replacement=[], accepted_suffix=[])
-                except Exception:
-                    pass
+        for e, (accepted_prefix, bonus) in corrections.items():
+            fingerprint = (tuple(context_ids[-8:]), "any", str(self.target_id), "greedy")
+            try:
+                self.memory.record_rejection(
+                    fingerprint, replacement=[bonus], accepted_suffix=accepted_prefix
+                )
+            except Exception:
+                pass
 
 
 def build_dag_router(

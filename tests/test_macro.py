@@ -73,6 +73,26 @@ def test_macro_expert_propose_returns_valid_renders(renderer) -> None:
         assert ids == renderer.render_index(idx)
 
 
+def test_macro_fallback_uses_parser_state(renderer) -> None:
+    """Head-free fallback must pick the structurally correct continuation from
+    parser state, not always the first macro."""
+    expert = MacroExpert(renderer, head=None)
+    names = renderer.names
+
+    top_paren = expert.propose_from_text("def f(x", top_k=3)
+    assert names[top_paren[0][0]] == "CLOSE_PAREN"
+
+    top_fence = expert.propose_from_text("```python\nprint(1)\n", top_k=3)
+    assert names[top_fence[0][0]] == "CLOSE_CODE_FENCE"
+
+    top_brace = expert.propose_from_text('{"k": [1, 2', top_k=5)
+    top_names = [names[i] for i, _ in top_brace]
+    assert "CLOSE_BRACE" in top_names or "CLOSE_BRACKET" in top_names
+
+    top_bracket = expert.propose_from_text("items = [1, 2", top_k=3)
+    assert names[top_bracket[0][0]] == "CLOSE_BRACKET"
+
+
 def test_parser_features_vector_shape() -> None:
     feats = parser_features_from_text('{"a": [1, 2')
     assert len(feats) == 6
