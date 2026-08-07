@@ -85,6 +85,73 @@ def _derive_candidates(
     return out
 
 
+def _json_candidates(text: str) -> list[str]:
+    """Predict likely next structural tokens of a JSON document from prefix text.
+
+    JSON tokenizes structural boundaries into repeating multi-char tokens
+    ('":', ' "', '",\\n'), one per key/value boundary. A tiny state machine
+    over the prefix predicts which boundary comes next so the macro mechanism
+    can credit structured continuations. Heuristic; returns candidate strings
+    that may match a token's decoded text.
+    """
+    stack: list[str] = []
+    in_str = False
+    esc = False
+    str_role = "value"
+    state = "start"
+    for ch in text:
+        if in_str:
+            if esc:
+                esc = False
+            elif ch == "\\":
+                esc = True
+            elif ch == '"':
+                in_str = False
+                state = "after_key" if str_role == "key" else "after_value"
+            continue
+        if ch == '"':
+            in_str = True
+            if stack and stack[-1] == "{" and state in ("after_open", "after_comma"):
+                str_role = "key"
+                state = "in_key"
+            else:
+                str_role = "value"
+                state = "in_value"
+            continue
+        if ch in "{[":
+            stack.append(ch)
+            state = "after_open"
+        elif ch in "}]":
+            if stack:
+                stack.pop()
+            state = "after_value"
+        elif ch == ":":
+            state = "after_colon"
+        elif ch == ",":
+            state = "after_comma"
+        elif not ch.isspace():
+            state = "in_value"
+    if in_str:
+        # Right after an opening quote (prefix ends with '"') the string body
+        # comes next and is unpredictable. Mid-string, a key's next structural
+        # token is the closing-quote-plus-colon merge.
+        if text.endswith('"') and not text.endswith('\\"'):
+            return []
+        if str_role == "key":
+            return ['":', '": ']
+        return []
+    top = stack[-1] if stack else None
+    if state == "after_colon":
+        return [' "', " {", " [", " "]
+    if state == "after_open":
+        return [' "', "}", "{", "["] if top == "{" else ["{", "[", '"', "]"]
+    if state == "after_comma":
+        return [' "', "\n  ", ", "] if top == "[" else [' "', "\n  "]
+    if state in ("after_value", "after_key"):
+        return [",", "}", "]", '",\n', ",\n"]
+    return []
+
+
 def parse_scan(text: str) -> ParseState:
     stack, in_sq, in_dq, in_fence = _scan(text)
     lines = text.split("\n")
@@ -108,6 +175,7 @@ def parse_scan(text: str) -> ParseState:
             prev_numbered = int(head)
     fence_line_start = in_fence and not text.rstrip("\n").endswith(" ")
     candidates = _derive_candidates(stack, in_fence, last_line, indent, prev_bullet, prev_numbered)
+    candidates.extend(_json_candidates(text))
     return ParseState(
         bracket_stack=tuple(stack),
         in_single_quote=in_sq,
