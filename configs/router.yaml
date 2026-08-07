@@ -1,0 +1,11 @@
+# Utility router v1 configuration (plan todo 19).
+
+tau_abstain: 0.05
+ema_rate: 0.2
+horizons: [2, 4, 6, 8]
+max_experts: 2
+experts:
+  - general
+  - macro
+  - copy
+  - reject_memory
