@@ -200,6 +200,24 @@ class TestTargetModelOnGpu:
         b2 = target.generate_greedy_batch([prompt_ids, prompt_ids], 12)
         assert b2[0] == b2[1]
 
+    def test_batch_left_padding_mixed_lengths(self, target) -> None:
+        # A shorter prompt left-padded into a mixed batch must still generate
+        # correctly. Padding bugs corrupt output from the start; bf16 batch
+        # numerics can flip rare near-ties, so require high agreement, not
+        # bit-equality, with the prompt decoded on its own.
+        short_prompt = [8327, 22160, 47116, 4278, 553]
+        long_prompt = list(range(100, 110))
+        single = target.generate_greedy(torch.tensor([short_prompt]), 12)[
+            0, len(short_prompt):
+        ].tolist()
+        batched = target.generate_greedy_batch([long_prompt, short_prompt], 12)
+        assert len(batched) == 2
+        assert batched[1] is not None
+        agree = sum(1 for a, b in zip(batched[1], single) if a == b)
+        assert agree / len(single) >= 0.5, (
+            f"left-padded batch diverged from single decode: {agree}/{len(single)}"
+        )
+
     def test_topk_logits_shape_and_vocab_range(
         self,
         target: TargetModel,

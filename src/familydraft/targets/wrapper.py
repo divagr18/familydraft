@@ -165,8 +165,12 @@ class TargetModel:
         ids = torch.full((len(prompts), max_len), pad, dtype=torch.long, device=self._device)
         mask = torch.zeros((len(prompts), max_len), dtype=torch.long, device=self._device)
         for i, p in enumerate(prompts):
-            ids[i, : len(p)] = torch.tensor(p, dtype=torch.long, device=self._device)
-            mask[i, : len(p)] = 1
+            # LEFT-pad: canonical side for decoder-only (causal) generation.
+            # Right-padding is a known footgun for causal attention (HF warns),
+            # so shorter prompts sit at the END of the row with pad on the left.
+            start = max_len - len(p)
+            ids[i, start:] = torch.tensor(p, dtype=torch.long, device=self._device)
+            mask[i, start:] = 1
         with torch.inference_mode():
             out = self.model.generate(
                 input_ids=ids,
@@ -177,7 +181,9 @@ class TargetModel:
             )
         results: list[list[int]] = []
         for i, p in enumerate(prompts):
-            new = out[i, len(p) :].tolist()
+            # Rows are left-padded: the generated continuation is everything
+            # AFTER position max_len (prompt occupies [max_len-len(p), max_len)).
+            new = out[i, max_len:].tolist()
             if eos is not None and eos in new:
                 new = new[: new.index(eos)]
             results.append(new)
