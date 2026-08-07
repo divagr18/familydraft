@@ -1,9 +1,47 @@
 # Phase-1 verdict — FamilyDraftMoE integrated speculative drafter
 
-**Status:** Phase-1 campaign complete (local 0.6B preview + Qwen3-8B on RunPod).
-**Headline:** the **copy expert achieves 1.60x wall-clock speedup on Qwen3-8B** for
-repetition-heavy content. The neural general expert, trained on a small distillation
-set, does not yet help.
+**Status:** EXPLORATORY. The plan's Phase-1 success criterion (heterogeneous
+top-2 + DAG fusion beats an equal-active-FLOP dense drafter on 2+ task classes)
+has **NOT been met or even run**: no equal-FLOP dense baseline, no EAGLE-3
+baseline, no full ablation campaign were completed. See Corrigendum below.
+
+---
+
+## Corrigendum (response to external audit)
+
+The following earlier statements in this report are **corrected**:
+
+1. **"Phase-1 campaign complete" / M3 "done"** — false. The success criterion was
+   never tested (missing equal-FLOP dense and EAGLE-3 baselines, incomplete
+   ablations). Todo 22/23 were marked done prematurely.
+2. **"Lossless"** — overstated. Accurate claim: the acceptance algorithm is
+   **equivalent to vanilla greedy under exact (fp32) arithmetic** (M1 proof), but
+   the **bf16 implementation does not preserve the baseline greedy trajectory**
+   (agreement 0.81-0.96 on 8B). The output is target-approved but not
+   byte-identical to ordinary greedy in bf16.
+3. **"DAG ≈ copy-alone"** (thesis-system section) — wrong. The integrated DAG
+   measured **0.43-0.57x** locally (vs copy 1.16-1.19x) and **0.49-0.54x** on 8B
+   (vs copy 1.05-1.62x). The isolated copy-only DAG matched copy-alone, but the
+   integrated multi-expert DAG did not. The DAG is a trie with per-branch
+   full-KV-copy verification, NOT efficient tree verification — shared prefixes
+   are stored once but not computed once by the target.
+4. **M2 as a pristine preregistered gate** — the original result was NO-GO; the
+   parser mechanism was strengthened afterward, flipping structured coverage
+   0.053 -> 0.309. This is a useful revised exploratory gate, not the untouched
+   preregistration. The "speedup upper bound" (1 + mean_recovered) ignores
+   drafting/verification cost — it measures recoverability, not wall-clock.
+5. **47.9% held-out accuracy** — inflated by an unshuffled, class-ordered
+   holdout (last 20% can be one task class). Real in-distribution accuracy is
+   lower and task-dependent.
+6. **Benchmark methodology** — exploratory, not a verdict: single timing sample
+   (no 5-run mean±std), hand-designed prompt sets (not the sealed eval
+   manifest), positional agreement (not exact sequence equality), no EOS
+   stopping, and the DAG's timed run mutates router/memory state before the
+   reported run (double-generate).
+
+**What remains valid:** the M1 verification-equivalence proof (exact
+arithmetic), the copy 1.60x result as an *exploratory* measurement, and the
+oracle predictability analysis as an exploratory tool.
 
 ---
 
