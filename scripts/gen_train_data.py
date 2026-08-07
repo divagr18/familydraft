@@ -39,6 +39,10 @@ _CODE_TEMPLATES = [
     "Write a Python function that maps each {s} to its length.",
     "Write a Python function that concatenates two lists of {s}.",
     "Write a Python function that returns the first five elements of a list of {s}.",
+    "Write a Python function that pairs two lists of {s} into tuples.",
+    "Write a Python function that checks whether a list of {s} is sorted.",
+    "Write a Python function that returns the n largest elements of a list of {s}.",
+    "Write a Python function that swaps adjacent elements of a list of {s}.",
 ]
 
 _CHAT_TOPICS = ["photosynthesis", "neural networks", "the water cycle", "gravity",
@@ -46,7 +50,11 @@ _CHAT_TOPICS = ["photosynthesis", "neural networks", "the water cycle", "gravity
                 "plate tectonics", "machine learning", "the greenhouse effect",
                 "biodiversity", "quantum computing", "renewable energy",
                 "the scientific method", "game theory", "cybersecurity",
-                "urban planning", "genetics", "climate models", "cryptography"]
+                "urban planning", "genetics", "climate models", "cryptography",
+                "blockchain", "regression analysis", "the periodic table",
+                "information theory", "linguistics", "electromagnetism",
+                "statistical inference", "organizational behavior",
+                "neuroplasticity", "aerodynamics"]
 _CHAT_TEMPLATES = [
     "Explain {t} in two sentences.",
     "What is {t} and why does it matter?",
@@ -54,6 +62,10 @@ _CHAT_TEMPLATES = [
     "Summarize the key idea behind {t}.",
     "List three important facts about {t}.",
     "Describe how {t} relates to everyday life.",
+    "Compare {t} with its opposite concept.",
+    "Write a one-paragraph definition of {t}.",
+    "Explain {t} to a ten-year-old.",
+    "Discuss a common misconception about {t}.",
 ]
 
 _KEY_TYPES = [("name", "string"), ("age", "integer"), ("city", "string"),
