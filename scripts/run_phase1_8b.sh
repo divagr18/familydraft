@@ -53,7 +53,7 @@ else
 fi
 
 # --- 2. Full baseline campaign (6 systems x 4 task classes) ------------------
-log "3/7 full baseline campaign (--all, runs=$RUNS, spec_len=$SPEC_LEN)"
+log "3/8 full baseline campaign (--all, runs=$RUNS, spec_len=$SPEC_LEN)"
 python scripts/run_baselines.py --all \
   --repo "$REPO" \
   --runs "$RUNS" \
@@ -63,17 +63,36 @@ python scripts/run_baselines.py --all \
   --general-checkpoint "$CKPT" \
   --router-weights "configs/router_weights_8b.json"
 
+# --- 2b. Pre-registered ablation matrix (12 configs x 4 task classes) --------
+log "4/8 ablation matrix (12 configs x 4 task classes, runs=$RUNS)"
+for ABL in configs/ablations/*.yaml; do
+  NAME="$(basename "$ABL" .yaml)"
+  for TC in code repetitive structured gsm8k; do
+    log "  ablation: $NAME / $TC"
+    python scripts/run_baselines.py --system full_proposal_moe \
+      --task-class "$TC" --ablation "$NAME" \
+      --repo "$REPO" \
+      --runs "$RUNS" \
+      --max-new "$MAX_NEW" \
+      --max-prompts "$MAX_PROMPTS" \
+      --spec-len "$SPEC_LEN" \
+      --general-checkpoint "$CKPT" \
+      --router-weights "configs/router_weights_8b.json" \
+      || log "  WARNING: ablation $NAME/$TC failed (recorded, continuing)"
+  done
+done
+
 # --- 3. EAGLE-3 SpecForge setup + training -----------------------------------
-log "4/7 EAGLE-3 SpecForge setup"
+log "5/8 EAGLE-3 SpecForge setup"
 bash scripts/setup_eagle3.sh REPO="$REPO" EAGLE_DIR="$EAGLE_DIR"
-log "5/7 NOTE: run the EAGLE-3 training command printed by setup_eagle3.sh, then"
+log "6/8 NOTE: run the EAGLE-3 training command printed by setup_eagle3.sh, then"
 log "      produce eagle3 rows with scripts/eval_eagle3.py (see setup output)."
 
 # --- 4. Aggregate campaign + gates -------------------------------------------
-log "6/7 aggregating phase1.csv + order check"
+log "7/8 aggregating phase1.csv + order check"
 python scripts/run_phase1.py
 python scripts/m3_order_check.py
-log "7/7 verdict:"
+log "8/8 verdict:"
 python scripts/m3_verdict.py
 
 log "DONE. Artifacts: runs/baselines/*.json, runs/results/phase1.csv"
