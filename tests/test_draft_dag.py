@@ -107,6 +107,67 @@ def test_dag_single_expert_matches_vanilla(tiny_target) -> None:
 
 
 @pytest.mark.skipif(not CUDA, reason="requires a CUDA GPU")
+def test_dag_second_branch_winner_is_lossless(tiny_target) -> None:
+    """Regression: when a NON-first branch wins, the continuation KV must be
+    rebuilt from the context cache (a length-crop of the tree cache only works
+    when the first branch wins). First expert proposes a 1-token match, second
+    an oracle continuation -> second branch wins with m>=2."""
+    vanilla = _greedy(tiny_target.model, tiny_target.tokenizer, PROMPT, 20)
+    pids = _pids(tiny_target.tokenizer, PROMPT)
+
+    def first_draft(context_ids):
+        # matches vanilla[0] only; diverges at position 1
+        return [vanilla[0], (vanilla[1] + 1) % 151936, 5, 6]
+
+    def oracle_draft(context_ids):
+        # proposes the exact vanilla continuation -> wins
+        offset = len(context_ids) - len(pids)
+        return vanilla[offset: offset + 4]
+
+    router = _make_router(["first", "second"], {2: 40.0, 66: 1320.0})
+    spec = DagSpeculator(
+        tiny_target,
+        router,
+        {"first": first_draft, "second": oracle_draft},
+        {"first": 4, "second": 4},
+        always_on=["first", "second"],
+    )
+    res = spec.generate(pids, 20)
+    assert res["tokens"] == vanilla
+
+
+@pytest.mark.skipif(not CUDA, reason="requires a CUDA GPU")
+def test_dag_second_branch_winner_real_model_deterministic(qwen_target) -> None:
+    """Second-branch winner on the real model: deterministic across runs.
+    (Byte-identity with the HF-sequential oracle is not asserted here: the
+    tree verifier's logits come from a batched bf16 forward, so deep near-tie
+    flips can reject the oracle - the documented batch-vs-sequential artifact.
+    The tiny fp32 test is the exactness proof.)"""
+    tok = qwen_target.tokenizer
+    pids = _pids(tok, REPETITIVE)
+    vanilla = _greedy(qwen_target.model, tok, REPETITIVE, 20)
+
+    def first_draft(context_ids):
+        return [vanilla[0], (vanilla[1] + 1) % 151643, 5, 6]
+
+    def oracle_draft(context_ids):
+        offset = len(context_ids) - len(pids)
+        return vanilla[offset: offset + 4]
+
+    router = _make_router(["first", "second"], {2: 40.0, 66: 1320.0})
+    spec = DagSpeculator(
+        qwen_target,
+        router,
+        {"first": first_draft, "second": oracle_draft},
+        {"first": 4, "second": 4},
+        always_on=["first", "second"],
+    )
+    r1 = spec.generate(pids, 20)
+    r2 = spec.generate(pids, 20)
+    assert r1["tokens"] == r2["tokens"]
+
+
+@pytest.mark.skipif(not CUDA, reason="requires a CUDA GPU")
 def test_dag_multi_expert_matches_vanilla(tiny_target) -> None:
     vanilla = _greedy(tiny_target.model, tiny_target.tokenizer, REPETITIVE, 20)
     experts = _experts_for(tiny_target, ["copy", "macro"])

@@ -159,12 +159,16 @@ class DagSpeculator:
                 if emit_single():
                     break
                 continue
-            best, per_expert_m, tree_cache = verified
+            best, per_expert_m = verified
             m, bonus, winner, accepted = best
             accepted_tokens += m
 
-            final_cache = self._crop(tree_cache, ctx_len + m)
-            past, logits_next = self._feed(final_cache, [bonus])
+            # Rebuild the continuation KV from the context cache (unmutated:
+            # _verify_tree deep-copies it). A length-crop of the tree cache is
+            # only correct when the first branch wins, because tree rows are in
+            # topological order, not branch order.
+            continuation = copy.deepcopy(past)
+            past, logits_next = self._feed(continuation, accepted + [bonus])
             logits = logits_next[-1]
             ctx_len += m + 1
             generated.extend(accepted)
@@ -209,8 +213,9 @@ class DagSpeculator:
         single sequence with a 0/-inf tree mask (node attends only to context +
         its ancestors) and depth-based position_ids, then walks each branch's
         acceptance from the per-node logits. Shared prefixes are computed once.
-        Returns (best_branch, per_expert_m, tree_cache) where tree_cache holds
-        context + all nodes and must be cropped by the caller.
+        Returns (best_branch, per_expert_m); the caller rebuilds the
+        continuation KV from the context cache (tree rows are in topo order, so
+        a length-crop is only safe for the first branch).
         """
         NEG = float("-inf")
         tokens: list[int] = []
@@ -275,7 +280,7 @@ class DagSpeculator:
             per_expert_m[src] = max(per_expert_m.get(src, 0), m)
             if best is None or m > best[0]:
                 best = (m, bonus, src, list(branch[:m]))
-        return best, per_expert_m, tree_cache
+        return best, per_expert_m
 
     def _maybe_record_rejection(self, context_ids, winner, per_expert_m, proposals) -> None:
         if self.memory is None:
