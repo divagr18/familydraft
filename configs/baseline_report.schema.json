@@ -1,0 +1,29 @@
+{
+  "schema": "familydraft.baseline_report.v1",
+  "description": "Validation schema for every Phase-1 baseline row (plan todo 21/22).",
+  "type": "object",
+  "required": ["system", "task_class", "repo", "target_tokens_per_second",
+               "mean", "std", "runs", "config_hash", "flops_per_emitted_token",
+               "exactness"],
+  "properties": {
+    "system": {"type": "string", "enum": [
+      "vanilla_ar", "small_dense_drafter", "equal_flop_dense_drafter",
+      "eagle3_specforge", "single_best_expert", "hetero_top2_no_fusion",
+      "full_proposal_moe"]},
+    "task_class": {"type": "string", "enum": ["code", "repetitive", "structured", "gsm8k"]},
+    "repo": {"type": "string"},
+    "target_tokens_per_second": {"type": "number", "exclusiveMinimum": 0},
+    "mean": {"type": "number", "exclusiveMinimum": 0},
+    "std": {"type": "number", "minimum": 0},
+    "runs": {"type": "integer", "minimum": 5},
+    "config_hash": {"type": "string", "minLength": 8},
+    "flops_per_emitted_token": {"type": "number", "exclusiveMinimum": 0},
+    "exactness": {"type": "object",
+      "required": ["fp32_exact"],
+      "properties": {
+        "fp32_exact": {"type": "boolean"},
+        "bf16_exact_match_rate": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    }
+  }
+}

@@ -200,6 +200,42 @@ def test_dag_rejection_memory_records_real_bonus(tiny_target) -> None:
 
 
 @pytest.mark.skipif(not CUDA, reason="requires a CUDA GPU")
+def test_dag_sequential_no_fusion_is_lossless(tiny_target) -> None:
+    """tree_verify=False (baseline 'hetero top-2 without fusion') must also be
+    lossless vs vanilla under fp32."""
+    vanilla = _greedy(tiny_target.model, tiny_target.tokenizer, PROMPT, 20)
+    experts = _experts_for(tiny_target, ["copy", "macro"])
+    router = _make_router(["copy", "macro"], {2: 40.0, 66: 1320.0})
+    spec = DagSpeculator(
+        tiny_target,
+        router,
+        experts,
+        {"copy": 4, "macro": 2},
+        tree_verify=False,
+    )
+    res = spec.generate(_pids(tiny_target.tokenizer, PROMPT), 20)
+    assert res["tokens"] == vanilla
+
+
+@pytest.mark.skipif(not CUDA, reason="requires a CUDA GPU")
+def test_dag_single_best_expert_is_lossless(tiny_target) -> None:
+    """max_experts=1 (baseline 'single-best-expert selection') must be lossless
+    and deterministic."""
+    vanilla = _greedy(tiny_target.model, tiny_target.tokenizer, PROMPT, 20)
+    experts = _experts_for(tiny_target, ["copy", "macro"])
+    router = _make_router(["copy", "macro"], {2: 40.0, 66: 1320.0})
+    spec = DagSpeculator(
+        tiny_target,
+        router,
+        experts,
+        {"copy": 4, "macro": 2},
+        max_experts=1,
+    )
+    res = spec.generate(_pids(tiny_target.tokenizer, PROMPT), 20)
+    assert res["tokens"] == vanilla
+
+
+@pytest.mark.skipif(not CUDA, reason="requires a CUDA GPU")
 def test_dag_multi_expert_matches_vanilla(tiny_target) -> None:
     vanilla = _greedy(tiny_target.model, tiny_target.tokenizer, REPETITIVE, 20)
     experts = _experts_for(tiny_target, ["copy", "macro"])

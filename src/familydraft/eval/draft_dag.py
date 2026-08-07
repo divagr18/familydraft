@@ -52,6 +52,8 @@ class DagSpeculator:
         target_id: int = 0,
         memory=None,
         always_on: list[str] | None = None,
+        max_experts: int = 2,
+        tree_verify: bool = True,
     ) -> None:
         self.model = target_model.model
         self.tokenizer = target_model.tokenizer
@@ -61,6 +63,8 @@ class DagSpeculator:
         self.target_id = target_id
         self.memory = memory
         self.always_on = list(always_on or [])
+        self.max_experts = max_experts
+        self.tree_verify = tree_verify
         self.device = next(self.model.parameters()).device
         eos = getattr(self.model.generation_config, "eos_token_id", None)
         if isinstance(eos, list):
@@ -121,6 +125,7 @@ class DagSpeculator:
         generated: list[int] = []
         rounds = 0
         accepted_tokens = 0
+        verify_nodes = 0
 
         while len(generated) < max_new_tokens:
             rounds += 1
@@ -128,7 +133,7 @@ class DagSpeculator:
             context_ids = prompt_ids + generated
 
             feats = self._features(context_ids)
-            decision = self.router.select(feats)
+            decision = self.router.select(feats, max_experts=self.max_experts)
             # always_on experts (cheap structural ones) always propose; the
             # router only decides which ADDITIONAL experts to activate.
             selected = [
@@ -170,8 +175,14 @@ class DagSpeculator:
             dag = CandidateDag()
             for eid, prop in enumerate(proposals.values()):
                 dag.insert(prop, expert_id=eid)
+            verify_nodes += dag.node_count
 
-            verified = self._verify_tree(past, ctx_len, t_next, dag, proposals, selected)
+            if self.tree_verify:
+                verified = self._verify_tree(past, ctx_len, t_next, dag, proposals, selected)
+            else:
+                verified = self._verify_sequential(
+                    past, ctx_len, t_next, dag, proposals, selected
+                )
             if verified is None:
                 if emit_single():
                     break
@@ -207,7 +218,43 @@ class DagSpeculator:
             "rounds": rounds,
             "accepted_tokens": accepted_tokens,
             "tokens_per_round": len(generated) / max(1, rounds),
+            "verify_nodes_per_round": verify_nodes / max(1, rounds),
         }
+
+    def _verify_sequential(self, base_cache, ctx_len, t_next, dag, proposals, selected):
+        """Per-branch verification with no candidate fusion (baseline:
+        'heterogeneous top-2 without fusion'). Each branch is fed through a
+        fresh copy of the context cache and verified independently, so shared
+        prefixes are recomputed. Returns the same tuple as _verify_tree."""
+        best = None
+        per_expert_m: dict[str, int] = {}
+        corrections: dict[str, tuple[list[int], int]] = {}
+        for branch in dag.branches():
+            if not branch:
+                continue
+            cache_copy = copy.deepcopy(base_cache)
+            cp, lg = self._feed(cache_copy, list(branch))
+            K = len(branch)
+            m = 0
+            bonus = t_next
+            if branch[0] == t_next:
+                m = 1
+                for i in range(1, K):
+                    tt = int(torch.argmax(lg[i - 1], dim=-1))
+                    if branch[i] == tt:
+                        m += 1
+                    else:
+                        bonus = tt
+                        break
+                else:
+                    bonus = int(torch.argmax(lg[K - 1], dim=-1))
+            src = self._branch_source(branch, proposals, selected)
+            per_expert_m[src] = max(per_expert_m.get(src, 0), m)
+            if m < K and src:
+                corrections[src] = (list(branch[:m]), int(bonus))
+            if best is None or m > best[0]:
+                best = (m, bonus, src, list(branch[:m]))
+        return best, per_expert_m, corrections
 
     @staticmethod
     def _crop(cache, length: int):

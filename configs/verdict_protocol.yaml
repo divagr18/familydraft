@@ -1,0 +1,48 @@
+# Phase-1 verdict protocol (M3) - PRE-REGISTERED before any campaign run.
+# Immutability is enforced by scripts/m3_order_check.py (git timestamp of this
+# file must precede the first phase1.csv run). Thresholds follow concept note
+# §10.5: primary metric is end-to-end target tokens/sec; the DAG wins only if it
+# beats every baseline on the primary metric at the same exactness level.
+
+format_version: 1.0
+primary_metric: target_tokens_per_second
+
+systems:
+  - vanilla_ar
+  - small_dense_drafter
+  - equal_flop_dense_drafter
+  - eagle3_specforge
+  - single_best_expert
+  - hetero_top2_no_fusion
+  - full_proposal_moe
+
+task_classes:
+  - code
+  - repetitive
+  - structured
+  - gsm8k
+
+runs_per_system_per_task: 5
+
+verdict:
+  # DAG (full_proposal_moe) must strictly beat vanilla on every task class.
+  min_speedup_vs_vanilla: 1.0
+  # DAG must beat or tie the equal-FLOP dense drafter (the audit's core demand:
+  # the speculative machinery must justify its FLOP spend vs a dense decoder
+  # spending the same compute).
+  must_beat_equal_flop_dense: true
+  # DAG must not lose to the single-best-expert baseline on more than one task
+  # class (the MoE overhead must pay for itself).
+  max_losses_vs_single_best: 1
+  # EAGLE-3 is the generalist bar: if present, report the gap; DAG losing to it
+  # is allowed but must be reported honestly in the verdict table.
+  eagle3_reported_as_gap: true
+
+exactness:
+  # Every greedy row must pass the output-equivalence invariant: emitted tokens
+  # byte-identical to vanilla under fp32 (bf16 divergence documented separately).
+  output_equivalence_invariant: fp32_exact
+  bf16_artifact_documented: true
+
+config_hash_required: true
+reproducibility_tolerance_pct: 3.0
