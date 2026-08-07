@@ -6,17 +6,14 @@ resyncs a persistent KV cache via longest-prefix matching. Draft equality is
 the correctness contract: any divergence would change acceptance.
 """
 
+from pathlib import Path
+
 import torch
 
 from familydraft.draft.trunk import build_trunk_from_config
-from familydraft.eval.draft_loop import (
-    GeneralDrafter,
-    IntegratedSpeculator,
-    make_general_drafter,
-)
+from familydraft.eval.draft_loop import GeneralDrafter, IntegratedSpeculator
 from familydraft.experts.general import GeneralExpert
 from familydraft.targets.wrapper import TargetModel
-from pathlib import Path
 
 
 def _old_drafter(expert, spec_len, target_id, device):
@@ -39,7 +36,6 @@ def test_draft_equality():
     trunk = build_trunk_from_config(Path(".")).to(device)
     trunk.eval()
     expert = GeneralExpert(trunk).to(device)
-    target = TargetModel.load("Qwen/Qwen3-0.6B", dtype="bf16")
     target_id = 0
 
     old = _old_drafter(expert, 4, target_id, device)
@@ -68,7 +64,9 @@ def test_chain_equivalence_lossless():
     target = TargetModel.load("Qwen/Qwen3-0.6B", dtype="bf16")
     target_id = 0
 
-    old_spec = IntegratedSpeculator(target, _old_drafter(expert, 4, target_id, device), 4, target_id)
+    old_spec = IntegratedSpeculator(
+        target, _old_drafter(expert, 4, target_id, device), 4, target_id
+    )
     new_spec = IntegratedSpeculator(
         target, GeneralDrafter(expert, 4, target_id, device), 4, target_id
     )
