@@ -145,3 +145,54 @@ This run is the **Phase-1 campaign at scale** (plan todo 22 on a real target). I
 yields the wall-clock speedup of the heterogeneous drafter vs vanilla AR on
 Qwen3-8B — the headline number the local 0.6B result was a small-scale preview of.
 Feed `integrated_speedup_8b.json` into `docs/reports/` when you're back.
+
+---
+
+## 9. Part A — show copy's value on repetition-heavy prompts (quick)
+
+The copy expert's speedup is proportional to output repetition; a stronger model
+produces *less* repetitive code, so the generic code prompts gave only ~1.04×.
+Re-run on prompts engineered to elicit repetitive output (JSON arrays, repeated
+lines, CSV) where copy should earn a real speedup:
+
+```bash
+cd /workspace/familydraft
+PROMPT_SET=repetitive DRAFTERS=copy SPEC_LEN=8 MAX_NEW=128 bash scripts/run_8b.sh
+```
+
+Prompt sets: `code` (default), `repetitive`, `structured`. `--max-prompts N`
+caps how many prompts (faster). Result in `runs/results/integrated_speedup_8b.json`.
+
+---
+
+## 10. Part B — train a real drafter by distilling the target (the real fix)
+
+Copy can't draft non-repetitive text; a **trained neural drafter** can. This
+pipeline distills Qwen3-8B into the small general expert, then re-runs the eval
+with it. One command does all four stages (generate traces → build shards →
+train → eval on repetitive + code):
+
+```bash
+cd /workspace/familydraft
+bash scripts/run_train_8b.sh
+```
+
+Tunables (env): `REPO` (default Qwen/Qwen3-8B), `PER_CLASS` (training prompts per
+class, default 60), `CLASSES` (default `code,chat,structured,math`), `STEPS`
+(default 2000), `SPEC_LEN` (default 8), `TARGET_ID` (default 2 = Qwen3-8B).
+
+Outputs:
+- `runs/trainlogs/general_8b/general_expert.pt` — trained drafter checkpoint
+- `runs/trainlogs/general_8b/general_expert.json` — train/eval accuracy report
+- `runs/results/integrated_8b_trained_repetitive.json` and
+  `runs/results/integrated_8b_trained_code.json` — eval with the trained drafter
+
+To eval the trained drafter yourself with other settings:
+```bash
+GENERAL_CKPT=runs/trainlogs/general_8b/general_expert.pt \
+  PROMPT_SET=repetitive SPEC_LEN=8 DRAFTERS=copy,general bash scripts/run_8b.sh
+```
+
+Note: `gen_train_data.py` pulls GSM8K-train for the `math` class (needs HF
+network access). To skip it, use `CLASSES=code,chat,structured`.
+

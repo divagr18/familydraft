@@ -141,8 +141,13 @@ def main() -> int:
     from transformers import AutoTokenizer
 
     tokenizer = AutoTokenizer.from_pretrained(args.repo_for_tokenizer)
-    eval_hashes = build_eval_hash_set(Path(distill_cfg["eval_manifest"]), tokenizer)
-    print(f"eval hash set size: {len(eval_hashes)}")
+    manifest_path = Path(distill_cfg["eval_manifest"])
+    if manifest_path.exists():
+        eval_hashes = build_eval_hash_set(manifest_path, tokenizer)
+        print(f"eval hash set size: {len(eval_hashes)}")
+    else:
+        eval_hashes = set()
+        print(f"warning: eval manifest {manifest_path} missing; leak-proof skipped")
 
     trace_files = sorted(Path(args.traces_dir).glob("*.jsonl"))
     if not trace_files:

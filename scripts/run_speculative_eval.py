@@ -1,9 +1,13 @@
-"""Integrated speculative speedup evaluation (plan Wave E / todo 22 local scale).
+"""Integrated speculative speedup evaluation (plan Wave E / todo 22).
 
-Measures wall-clock vanilla greedy decoding vs the integrated speculative loop
-on code prompts, asserts the speculative output is token-identical to vanilla
-(losslessness), and reports speedup + acceptance. Runs on the local GPU at
-Qwen3-0.6B scale; the registered campaign uses bigger targets on RunPod.
+Measures wall-clock vanilla greedy decoding vs the integrated speculative loop,
+reports speedup + acceptance + agreement. Prompt sets:
+  code        - general coding prompts (copy has moderate value)
+  repetitive  - prompts engineered to elicit highly repetitive output, where the
+                copy drafter should earn a real speedup
+  structured  - JSON schema / repeated-key generation
+
+Can load a trained general-expert checkpoint via --general-checkpoint.
 """
 
 from __future__ import annotations
@@ -24,6 +28,38 @@ CODE_PROMPTS = [
     "Write 8 list append statements adding i to a list for i from 0 to 7:",
 ]
 
+REPETITIVE_PROMPTS = [
+    "Write exactly 10 lines. Line i must be exactly: x_i = i * 3  (i from 0 to 9).",
+    "Write 10 statements of the form results.append(i), one per line, for i from 0 to 9.",
+    "Repeat the exact line print(i) ten times, once per line.",
+    "Write 8 Python assignments of the form a_i = i for i from 0 to 7, one per line.",
+    "Generate a JSON array of 8 objects. Each object has exactly the keys \"id\", "
+    "\"name\", \"value\". The id runs from 0 to 7.",
+    "Create a JSON object with keys item_0 through item_7, where each key maps to "
+    "its index as the value.",
+    "Write a JSON list of 8 strings. The k-th string must be \"entry_k\" for k 0 to 7.",
+    "Output a CSV with header id,name,score followed by 8 rows whose id runs 0 to 7.",
+]
+
+STRUCTURED_PROMPTS = [
+    "Produce a JSON object matching the schema {\"type\":\"object\",\"properties\":"
+    "{\"name\":{\"type\":\"string\"},\"age\":{\"type\":\"integer\"}},\"required\":"
+    "[\"name\",\"age\"]} for a person named Ada aged 36.",
+    "Produce a JSON object matching the schema {\"type\":\"object\",\"properties\":"
+    "{\"city\":{\"type\":\"string\"},\"population\":{\"type\":\"integer\"}},\"required\":"
+    "[\"city\",\"population\"]} for Tokyo.",
+    "Produce a JSON array of 6 objects, each with keys \"task\" (string) and "
+    "\"done\" (boolean), describing 6 chores.",
+    "Produce a JSON object with a key \"steps\" mapping to an array of 6 strings, "
+    "each step numbered in order.",
+]
+
+PROMPT_SETS = {
+    "code": CODE_PROMPTS,
+    "repetitive": REPETITIVE_PROMPTS,
+    "structured": STRUCTURED_PROMPTS,
+}
+
 
 def _gpu_time(fn) -> float:
     torch.cuda.synchronize()
@@ -33,12 +69,24 @@ def _gpu_time(fn) -> float:
     return time.perf_counter() - t0
 
 
+def _target_id_for(repo: str) -> int:
+    table_path = Path("configs/target_ids.json")
+    if table_path.exists():
+        table = json.loads(table_path.read_text(encoding="utf-8"))
+        if repo in table:
+            return int(table[repo]["id"])
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", default="Qwen/Qwen3-0.6B")
     parser.add_argument("--max-new", type=int, default=64)
     parser.add_argument("--spec-len", type=int, default=4)
     parser.add_argument("--drafters", default="copy,general")
+    parser.add_argument("--prompt-set", default="code", choices=sorted(PROMPT_SETS))
+    parser.add_argument("--max-prompts", type=int, default=0)
+    parser.add_argument("--general-checkpoint", default="")
     parser.add_argument("--out", default="runs/results/integrated_speedup.json")
     args = parser.parse_args()
 
@@ -58,6 +106,11 @@ def main() -> int:
 
     device = torch.device("cuda")
     target = TargetModel.load(args.repo, dtype="bf16")
+    target_id = _target_id_for(args.repo)
+
+    prompts = list(PROMPT_SETS[args.prompt_set])
+    if args.max_prompts > 0:
+        prompts = prompts[: args.max_prompts]
 
     drafters = {}
     copy_expert = CopyExpert(seed=4, min_length=3)
@@ -66,18 +119,30 @@ def main() -> int:
     if "general" in args.drafters:
         trunk = build_trunk_from_config(Path("."))
         expert = GeneralExpert(trunk).to(device)
-        drafters["general"] = lambda: make_general_drafter(expert, args.spec_len, 0, device)
+        if args.general_checkpoint:
+            state = torch.load(args.general_checkpoint, map_location=device)
+            expert.load_state_dict(state)
+            print(f"loaded general checkpoint: {args.general_checkpoint}", flush=True)
+        drafters["general"] = lambda: make_general_drafter(
+            expert, args.spec_len, target_id, device
+        )
 
-    # Warmup
     warm_prompt = target.tokenizer("def f():", return_tensors="pt", add_special_tokens=False)[
         "input_ids"
     ][0]
     target.generate_greedy(warm_prompt, 8)
 
-    results = {"schema": "familydraft.integrated_speedup.v1", "repo": args.repo,
-               "max_new_tokens": args.max_new, "spec_len": args.spec_len, "runs": []}
+    results = {
+        "schema": "familydraft.integrated_speedup.v1",
+        "repo": args.repo,
+        "prompt_set": args.prompt_set,
+        "max_new_tokens": args.max_new,
+        "spec_len": args.spec_len,
+        "general_checkpoint": args.general_checkpoint or None,
+        "runs": [],
+    }
 
-    for prompt_text in CODE_PROMPTS:
+    for prompt_text in prompts:
         prompt_ids = target.tokenizer(
             prompt_text, return_tensors="pt", add_special_tokens=False
         )["input_ids"][0]
@@ -92,7 +157,7 @@ def main() -> int:
                "tokens": len(vanilla_tokens)}
 
         for name, factory in drafters.items():
-            speculator = IntegratedSpeculator(target, factory(), args.spec_len, 0)
+            speculator = IntegratedSpeculator(target, factory(), args.spec_len, target_id)
             spec_time = _gpu_time(lambda: speculator.generate(prompt_list, args.max_new))
             res = speculator.generate(prompt_list, args.max_new)
             agree = sum(1 for a, b in zip(res["tokens"], vanilla_tokens) if a == b)

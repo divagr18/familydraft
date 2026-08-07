@@ -20,19 +20,30 @@ REPO="${REPO:-Qwen/Qwen3-8B}"
 MAX_NEW="${MAX_NEW:-128}"
 SPEC_LEN="${SPEC_LEN:-8}"
 DRAFTERS="${DRAFTERS:-copy,general}"
+PROMPT_SET="${PROMPT_SET:-code}"
+MAX_PROMPTS="${MAX_PROMPTS:-0}"
+GENERAL_CKPT="${GENERAL_CKPT:-}"
 
-echo "[run_8b] target=$REPO max_new=$MAX_NEW spec_len=$SPEC_LEN drafters=$DRAFTERS"
+echo "[run_8b] target=$REPO max_new=$MAX_NEW spec_len=$SPEC_LEN drafters=$DRAFTERS set=$PROMPT_SET"
 python - <<'PY'
 import torch
 print("device:", torch.cuda.get_device_name(0),
       "| vram(GB):", round(torch.cuda.get_device_properties(0).total_memory / 1e9, 1))
 PY
 
+CKPT_ARGS=()
+if [ -n "$GENERAL_CKPT" ]; then
+  CKPT_ARGS=(--general-checkpoint "$GENERAL_CKPT")
+fi
+
 python scripts/run_speculative_eval.py \
   --repo "$REPO" \
   --max-new "$MAX_NEW" \
   --spec-len "$SPEC_LEN" \
   --drafters "$DRAFTERS" \
+  --prompt-set "$PROMPT_SET" \
+  --max-prompts "$MAX_PROMPTS" \
+  ${CKPT_ARGS[@]+"${CKPT_ARGS[@]}"} \
   --out runs/results/integrated_speedup_8b.json
 
 echo "[run_8b] DONE. Results: runs/results/integrated_speedup_8b.json"

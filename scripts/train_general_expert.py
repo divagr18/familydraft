@@ -91,9 +91,24 @@ def _train(expert, records, cfg, target_id, device, label_smoothing) -> list[flo
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", default="configs/train_general.yaml")
+    parser.add_argument("--shards-dir", default="")
+    parser.add_argument("--steps", type=int, default=0)
+    parser.add_argument("--out-dir", default="")
+    parser.add_argument("--target-id", type=int, default=-1)
+    parser.add_argument("--lr", type=float, default=0.0)
     args = parser.parse_args()
 
     cfg = _load_yaml(Path(args.config))
+    if args.shards_dir:
+        cfg["shards_dir"] = args.shards_dir
+    if args.steps > 0:
+        cfg["steps"] = args.steps
+    if args.out_dir:
+        cfg["out_dir"] = args.out_dir
+    if args.target_id >= 0:
+        cfg["target_id"] = args.target_id
+    if args.lr > 0:
+        cfg["lr"] = args.lr
     from familydraft.draft.trunk import build_trunk_from_config
     from familydraft.experts.general import GeneralExpert, make_random_trunk_like
 
