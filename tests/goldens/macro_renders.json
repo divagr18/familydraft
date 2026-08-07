@@ -1,0 +1,231 @@
+{
+ "CLOSE_PAREN": [
+  8
+ ],
+ "CLOSE_BRACKET": [
+  60
+ ],
+ "CLOSE_BRACE": [
+  92
+ ],
+ "CLOSE_PAREN_NL": [
+  340
+ ],
+ "CLOSE_BRACKET_NL": [
+  921
+ ],
+ "CLOSE_BRACE_NL": [
+  532
+ ],
+ "CLOSE_PAREN_SEMI": [
+  1215
+ ],
+ "CLOSE_BRACKET_SEMI": [
+  5265
+ ],
+ "CLOSE_BRACE_SEMI": [
+  11061
+ ],
+ "CLOSE_PAREN_COLON": [
+  1648
+ ],
+ "CLOSE_PAREN_COMMA": [
+  701,
+  220
+ ],
+ "CLOSE_BRACKET_COMMA": [
+  1125,
+  220
+ ],
+ "CLOSE_BRACE_COMMA": [
+  2137,
+  220
+ ],
+ "DOUBLE_CLOSE_PAREN": [
+  593
+ ],
+ "DOUBLE_CLOSE_BRACKET": [
+  5053
+ ],
+ "DOUBLE_CLOSE_BRACE": [
+  3417
+ ],
+ "OPEN_BRACE_NL": [
+  515
+ ],
+ "OPEN_BRACKET_NL": [
+  9640
+ ],
+ "OPEN_BRACE": [
+  314
+ ],
+ "OPEN_BRACKET": [
+  508
+ ],
+ "OPEN_PAREN": [
+  320
+ ],
+ "EMPTY_OBJECT": [
+  6257
+ ],
+ "EMPTY_ARRAY": [
+  1294
+ ],
+ "JSON_COLON": [
+  788,
+  220
+ ],
+ "JSON_STR_COMMA": [
+  756
+ ],
+ "JSON_OBJ_COMMA": [
+  1583
+ ],
+ "JSON_ARR_COMMA": [
+  1259
+ ],
+ "NEWLINE": [
+  198
+ ],
+ "DOUBLE_NEWLINE": [
+  271
+ ],
+ "NEWLINE_INDENT": [
+  198,
+  257
+ ],
+ "INDENT": [
+  257
+ ],
+ "DOUBLE_INDENT": [
+  260
+ ],
+ "SPACE": [
+  220
+ ],
+ "COLON": [
+  25
+ ],
+ "COLON_NL_INDENT": [
+  510,
+  257
+ ],
+ "RETURN": [
+  198,
+  689,
+  220
+ ],
+ "IMPORT": [
+  198,
+  474,
+  220
+ ],
+ "DEF": [
+  198,
+  750,
+  220
+ ],
+ "CLASS": [
+  198,
+  1040,
+  220
+ ],
+ "COMMENT": [
+  198,
+  2,
+  220
+ ],
+ "ARROW": [
+  1464,
+  220
+ ],
+ "LAMBDA": [
+  12935,
+  220
+ ],
+ "ASSIGN": [
+  284,
+  220
+ ],
+ "COMMA": [
+  11
+ ],
+ "SEMICOLON": [
+  26
+ ],
+ "DOT": [
+  13
+ ],
+ "ELLIPSIS": [
+  1112
+ ],
+ "CLOSE_CODE_FENCE": [
+  198,
+  13874,
+  3989
+ ],
+ "OPEN_CODE_FENCE_PY": [
+  198,
+  73594,
+  12669,
+  198
+ ],
+ "INLINE_CODE_FENCE": [
+  73594
+ ],
+ "CONTINUE_BULLET": [
+  198,
+  12,
+  220
+ ],
+ "CONTINUE_BULLET_STAR": [
+  198,
+  9,
+  220
+ ],
+ "CONTINUE_NUMBERED_1": [
+  198,
+  16,
+  13,
+  220
+ ],
+ "CONTINUE_NUMBERED_2": [
+  198,
+  17,
+  13,
+  220
+ ],
+ "CLOSE_BLOCK": [
+  198
+ ],
+ "COPY_IDENTIFIER": [
+  957
+ ],
+ "REPEAT_LINE_PREFIX": [
+  198
+ ],
+ "TRUE": [
+  1866
+ ],
+ "FALSE": [
+  3849
+ ],
+ "NULL": [
+  2921
+ ],
+ "NONE": [
+  4064
+ ],
+ "OPEN_PAREN_SPACE": [
+  7,
+  220
+ ],
+ "COLON_SPACE": [
+  25,
+  220
+ ],
+ "NEWLINE_CLOSE_BRACE": [
+  198,
+  92
+ ]
+}

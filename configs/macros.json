@@ -1,0 +1,326 @@
+{
+  "schema": "familydraft.macros.v1",
+  "count": 64,
+  "macros": [
+    {
+      "name": "CLOSE_PAREN",
+      "render": ")",
+      "category": "closer"
+    },
+    {
+      "name": "CLOSE_BRACKET",
+      "render": "]",
+      "category": "closer"
+    },
+    {
+      "name": "CLOSE_BRACE",
+      "render": "}",
+      "category": "closer"
+    },
+    {
+      "name": "CLOSE_PAREN_NL",
+      "render": ")\n",
+      "category": "closer"
+    },
+    {
+      "name": "CLOSE_BRACKET_NL",
+      "render": "]\n",
+      "category": "closer"
+    },
+    {
+      "name": "CLOSE_BRACE_NL",
+      "render": "}\n",
+      "category": "closer"
+    },
+    {
+      "name": "CLOSE_PAREN_SEMI",
+      "render": ");",
+      "category": "closer"
+    },
+    {
+      "name": "CLOSE_BRACKET_SEMI",
+      "render": "];",
+      "category": "closer"
+    },
+    {
+      "name": "CLOSE_BRACE_SEMI",
+      "render": "};",
+      "category": "closer"
+    },
+    {
+      "name": "CLOSE_PAREN_COLON",
+      "render": "):",
+      "category": "closer"
+    },
+    {
+      "name": "CLOSE_PAREN_COMMA",
+      "render": "), ",
+      "category": "closer"
+    },
+    {
+      "name": "CLOSE_BRACKET_COMMA",
+      "render": "], ",
+      "category": "closer"
+    },
+    {
+      "name": "CLOSE_BRACE_COMMA",
+      "render": "}, ",
+      "category": "closer"
+    },
+    {
+      "name": "DOUBLE_CLOSE_PAREN",
+      "render": "))",
+      "category": "closer"
+    },
+    {
+      "name": "DOUBLE_CLOSE_BRACKET",
+      "render": "]]",
+      "category": "closer"
+    },
+    {
+      "name": "DOUBLE_CLOSE_BRACE",
+      "render": "}}",
+      "category": "closer"
+    },
+    {
+      "name": "OPEN_BRACE_NL",
+      "render": "{\n",
+      "category": "json"
+    },
+    {
+      "name": "OPEN_BRACKET_NL",
+      "render": "[\n",
+      "category": "json"
+    },
+    {
+      "name": "OPEN_BRACE",
+      "render": " {",
+      "category": "json"
+    },
+    {
+      "name": "OPEN_BRACKET",
+      "render": " [",
+      "category": "json"
+    },
+    {
+      "name": "OPEN_PAREN",
+      "render": " (",
+      "category": "json"
+    },
+    {
+      "name": "EMPTY_OBJECT",
+      "render": "{}",
+      "category": "json"
+    },
+    {
+      "name": "EMPTY_ARRAY",
+      "render": "[]",
+      "category": "json"
+    },
+    {
+      "name": "JSON_COLON",
+      "render": "\": ",
+      "category": "json"
+    },
+    {
+      "name": "JSON_STR_COMMA",
+      "render": "\",\n",
+      "category": "json"
+    },
+    {
+      "name": "JSON_OBJ_COMMA",
+      "render": "},\n",
+      "category": "json"
+    },
+    {
+      "name": "JSON_ARR_COMMA",
+      "render": "],\n",
+      "category": "json"
+    },
+    {
+      "name": "NEWLINE",
+      "render": "\n",
+      "category": "whitespace"
+    },
+    {
+      "name": "DOUBLE_NEWLINE",
+      "render": "\n\n",
+      "category": "whitespace"
+    },
+    {
+      "name": "NEWLINE_INDENT",
+      "render": "\n    ",
+      "category": "whitespace"
+    },
+    {
+      "name": "INDENT",
+      "render": "    ",
+      "category": "whitespace"
+    },
+    {
+      "name": "DOUBLE_INDENT",
+      "render": "        ",
+      "category": "whitespace"
+    },
+    {
+      "name": "SPACE",
+      "render": " ",
+      "category": "whitespace"
+    },
+    {
+      "name": "COLON",
+      "render": ":",
+      "category": "code"
+    },
+    {
+      "name": "COLON_NL_INDENT",
+      "render": ":\n    ",
+      "category": "code"
+    },
+    {
+      "name": "RETURN",
+      "render": "\nreturn ",
+      "category": "code"
+    },
+    {
+      "name": "IMPORT",
+      "render": "\nimport ",
+      "category": "code"
+    },
+    {
+      "name": "DEF",
+      "render": "\ndef ",
+      "category": "code"
+    },
+    {
+      "name": "CLASS",
+      "render": "\nclass ",
+      "category": "code"
+    },
+    {
+      "name": "COMMENT",
+      "render": "\n# ",
+      "category": "code"
+    },
+    {
+      "name": "ARROW",
+      "render": " -> ",
+      "category": "code"
+    },
+    {
+      "name": "LAMBDA",
+      "render": "lambda ",
+      "category": "code"
+    },
+    {
+      "name": "ASSIGN",
+      "render": " = ",
+      "category": "code"
+    },
+    {
+      "name": "COMMA",
+      "render": ",",
+      "category": "code"
+    },
+    {
+      "name": "SEMICOLON",
+      "render": ";",
+      "category": "code"
+    },
+    {
+      "name": "DOT",
+      "render": ".",
+      "category": "code"
+    },
+    {
+      "name": "ELLIPSIS",
+      "render": "...",
+      "category": "code"
+    },
+    {
+      "name": "CLOSE_CODE_FENCE",
+      "render": "\n```\n",
+      "category": "fence"
+    },
+    {
+      "name": "OPEN_CODE_FENCE_PY",
+      "render": "\n```python\n",
+      "category": "fence"
+    },
+    {
+      "name": "INLINE_CODE_FENCE",
+      "render": "```",
+      "category": "fence"
+    },
+    {
+      "name": "CONTINUE_BULLET",
+      "render": "\n- ",
+      "category": "enumeration"
+    },
+    {
+      "name": "CONTINUE_BULLET_STAR",
+      "render": "\n* ",
+      "category": "enumeration"
+    },
+    {
+      "name": "CONTINUE_NUMBERED_1",
+      "render": "\n1. ",
+      "category": "enumeration"
+    },
+    {
+      "name": "CONTINUE_NUMBERED_2",
+      "render": "\n2. ",
+      "category": "enumeration"
+    },
+    {
+      "name": "CLOSE_BLOCK",
+      "render": "\n",
+      "category": "enumeration"
+    },
+    {
+      "name": "COPY_IDENTIFIER",
+      "render": "value",
+      "category": "special"
+    },
+    {
+      "name": "REPEAT_LINE_PREFIX",
+      "render": "\n",
+      "category": "special"
+    },
+    {
+      "name": "TRUE",
+      "render": "true",
+      "category": "literal"
+    },
+    {
+      "name": "FALSE",
+      "render": "false",
+      "category": "literal"
+    },
+    {
+      "name": "NULL",
+      "render": "null",
+      "category": "literal"
+    },
+    {
+      "name": "NONE",
+      "render": "None",
+      "category": "literal"
+    },
+    {
+      "name": "OPEN_PAREN_SPACE",
+      "render": "( ",
+      "category": "closer"
+    },
+    {
+      "name": "COLON_SPACE",
+      "render": ": ",
+      "category": "code"
+    },
+    {
+      "name": "NEWLINE_CLOSE_BRACE",
+      "render": "\n}",
+      "category": "closer"
+    }
+  ]
+}
