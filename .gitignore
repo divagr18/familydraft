@@ -20,3 +20,6 @@ runs/*
 
 # agent-harness session metadata (churns every turn; not planning state)
 .omo/run-continuation/
+
+# agent tooling indexes (large, local only)
+.codegraph/

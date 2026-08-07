@@ -8,6 +8,7 @@ dependencies = [
     "transformers>=4.51",
     "datasets",
     "jsonschema",
+    "pyyaml",
 ]
 
 [dependency-groups]
