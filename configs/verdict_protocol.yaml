@@ -7,6 +7,40 @@
 format_version: 1.0
 primary_metric: target_tokens_per_second
 
+# --- Pre-registered environment pins (plan todo 22) -------------------------
+# These are fixed BEFORE any verdict-campaign row runs and are not tunable
+# post-hoc. The local 0.6B campaign is an exploratory dev-box smoke; the
+# VERDICT campaign runs on the pod with exactly these pins.
+hardware:
+  gpu: "A100-80GB x1"
+  dtype: bf16
+  attention_backend: SDPA
+  cuda_graphs: false
+  transformers_pinned: true   # exact version logged in run_args at campaign time
+  torch_pinned: true
+
+throughput_formula:
+  # Decode-only target tokens/sec = generated target tokens / decode wall-clock.
+  # Prefill is timed separately and reported, never folded into the verdict.
+  decode_only: true
+  prefill_reported_separately: true
+
+win_margin_pct: 5.0
+
+verdict_pair:
+  - code
+  - structured
+
+budgets:
+  draft_horizon_max: 8
+  dag_nodes_max: 32
+  identical_across_systems: true   # same budgets for dense baselines too
+
+flop_matching_formula: "6 * N_active * T_draft (router overhead included in N_active)"
+training_compute_matching:
+  identical_training_tokens: true
+  gpu_hours_logged: true
+
 systems:
   - vanilla_ar
   - small_dense_drafter
