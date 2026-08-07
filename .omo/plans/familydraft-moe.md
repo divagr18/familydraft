@@ -361,10 +361,10 @@ Training set = {4B, 8B, 14B} Ã— auxiliary corpora; held-out unseen = {32B, Co
 
 ## Final verification wave
 > Runs in parallel after ALL todos. ALL must APPROVE. Surface results and wait for the user's explicit okay before declaring complete.
-- [ ] F1. Plan compliance audit â€” every todo's acceptance criteria re-executed from a clean clone + network-volume refs; M1/M2/M3 gate artifacts present (tags v0.1-M1, v0.2-M2 implied by todo-11 report, v0.3-M3); verdict protocol file predates campaign commits (git ordering proof); leak-proof assertion re-run.
-- [ ] F2. Code quality review â€” ruff clean, no TODO/FIXME outside docs/, test suite green on Windows CPU subset AND RunPod Linux GPU subset; no flash-attn imports in src/familydraft/verify/; dependency pins match pyproject lock.
-- [ ] F3. Real manual QA (agent-executed) â€” fresh end-to-end smoke: load Qwen3-8B on RunPod pod, run 10 prompts through full system greedy, assert byte-identical output vs vanilla AR + plausible speedup >1.0Ã—; cold-start router abstention behavior sane on garbage input.
-- [ ] F4. Scope fidelity â€” verify every Must-NOT-Have held: no QwQ/235B/Qwen3.5 artifacts, no engine code before Wave G, no gated experts without gate evidence, no manuscript prose beyond skeleton, no secrets in git (scan), Jakiro descope respected, oracle thresholds/verdict protocol files unmodified after pre-registration (git log proof).
+- [ ] F1. Plan compliance audit [LOCAL SUBSET SHIPPED - scripts/f1_audit.py 6/6 PASS: M1 tag v0.1-M1 present, M2 report present (v0.2-M2-NOGO implied), v0.3-M3 correctly withheld while FAIL, verdict protocol predates campaign (git ordering), sealed-manifest leak-proof re-run, protocol working-tree immutability; full clean-clone re-execution pod-deferred]
+- [ ] F2. Code quality review [LOCAL SUBSET SHIPPED - scripts/f2_f4_audit.py 11/11 PASS: ruff clean, no TODO/FIXME markers outside docs/, no flash-attn in verify/, uv.lock pins OK; Windows-CPU + RunPod-Linux-GPU test subsets pod-deferred]
+- [ ] F3. Real manual QA (agent-executed) [POD-DEFERRED - requires Qwen3-8B load on RunPod: 10-prompt byte-identity + speedup >1.0x + cold-start abstention sanity]
+- [ ] F4. Scope fidelity [LOCAL SUBSET SHIPPED - scripts/f2_f4_audit.py: no QwQ/235B/Qwen3.5 artifacts, no engine code in src (sglang/vllm/triton), docs/paper skeleton-only, no secrets in git-tracked files, verdict_protocol/oracle_thresholds unmodified since M3 pin commit, configs/expert_gates.yaml present; full git-log proof re-run pod-deferred]
 
 ## Commit strategy
 - Conventional commits, one commit per todo (see todo Commit lines); squash fixups before pushing tags.
