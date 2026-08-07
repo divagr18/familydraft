@@ -208,8 +208,30 @@ pod-deferred, so its rows are recorded as reported gaps, not fabricated.
 | hetero_top2_no_fusion | 7.62 | 6.38 | 7.10 | 7.37 |
 | full_proposal_moe | 8.14 | 6.82 | 7.57 | 8.12 |
 
+**Ablation matrix (12 pre-registered configs × 4 task classes, 0.6B, structured class shown; full rows in phase1.csv):**
+
+| Ablation | structured tps | vs full DAG (7.57) |
+|---|---|---|
+| routing_fixed_top1 | 19.31 | +155% |
+| no_rollout (cold-start router) | 7.80 | +3% |
+| horizons_shared | 7.86 | +4% |
+| no_rejection_memory | 7.72 | +2% |
+| no_online_feedback | 7.70 | +2% |
+| no_abstention | 7.66 | +1% |
+| routing_fixed_top2 | 7.39 | −2% |
+| routing_acceptance | 7.34 | −3% |
+| fixed_top2_no_fusion | 7.30 | −4% |
+| acceptance_no_fusion | 7.14 | −6% |
+| fusion_chain (no tree fusion) | 6.82 | −10% |
+| no_target_embedding | 6.32 | −17% |
+
+**Ablation interpretation (0.6B, honest):** every single switch costs or gains ≤4% except two findings:
+- **routing_fixed_top1 (+155%)** — single-expert selection is dramatically faster at 0.6B because the multi-expert DAG's drafting+verification overhead dominates a memory-bound tiny target. This is the same conclusion as the systems table (single_best 19.2–22.4 tps ≫ full DAG 6.8–8.1 tps).
+- **no_target_embedding (−17%)** — removing target identity conditioning measurably hurts the general drafter; the target-variant embedding carries real signal even at 0.6B.
+- Fusion (tree vs sequential) costs ~10% at this scale — the tree verifier's single forward is not yet faster than per-branch on 6-layer trunk workloads.
+
 Artifacts: `runs/baselines/*.json` (schema-valid), `runs/results/phase1.csv`
-(24 rows + config hashes + FLOP ledger), `scripts/m3_verdict.py` output.
+(24 baseline + 48 ablation rows, config hashes + FLOP ledger), `scripts/m3_verdict.py` output.
 
 **Verdict: FAIL (exit 78).** Per the pre-registered rules:
 - DAG speedup vs vanilla: 0.32–0.39x on all classes (threshold 1.0) — drafting +
