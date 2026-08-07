@@ -1,0 +1,16 @@
+# Distillation dataset configuration (plan todo 12).
+
+splits:
+  train: 1.0
+
+# Target stratification ratios by task class for the train split.
+ratio_by_task_class:
+  chat: 0.25
+  code: 0.25
+  math: 0.25
+  structured: 0.25
+
+shard_max_records: 64
+
+# Evaluation datasets whose prompts must NEVER appear in training shards.
+eval_manifest: data/eval/MANIFEST.json

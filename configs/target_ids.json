@@ -1,0 +1,9 @@
+{
+  "Qwen/Qwen3-0.6B": {"id": 0, "size_tier": "0.6B", "variant_kind": "dense-instruct"},
+  "Qwen/Qwen3-4B": {"id": 1, "size_tier": "4B", "variant_kind": "dense-instruct"},
+  "Qwen/Qwen3-8B": {"id": 2, "size_tier": "8B", "variant_kind": "dense-instruct"},
+  "Qwen/Qwen3-14B": {"id": 3, "size_tier": "14B", "variant_kind": "dense-instruct"},
+  "Qwen/Qwen3-32B": {"id": 4, "size_tier": "32B", "variant_kind": "dense-instruct"},
+  "Qwen/Qwen3-30B-A3B": {"id": 5, "size_tier": "30B-A3B", "variant_kind": "moe-instruct"},
+  "Qwen/Qwen3-Coder-30B-A3B": {"id": 6, "size_tier": "30B-A3B", "variant_kind": "coder-instruct"}
+}
