@@ -1,0 +1,14 @@
+# General expert distillation recipe (plan todo 15). Fixed - no sweeps.
+
+model_repo: Qwen/Qwen3-0.6B
+target_id: 0
+lr: 0.0005
+steps: 120
+seq_len: 256
+seed: 0
+mcl: top1
+label_smoothing_top1: 0.0
+label_smoothing_top2: 0.1
+eval_holdout_frac: 0.2
+shards_dir: data/distill/train
+out_dir: runs/trainlogs
