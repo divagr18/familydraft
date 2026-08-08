@@ -138,6 +138,12 @@ class DagSpeculator:
         rounds = 0
         accepted_tokens = 0
         verify_nodes = 0
+        # Per-expert + abstention instrumentation (todo 23 supporting tables).
+        winner_acceptance: dict[str, int] = {e: 0 for e in self.experts}
+        proposals_made: dict[str, int] = {e: 0 for e in self.experts}
+        abstain_events = 0
+        selected_events = 0
+        second_rank_wins = 0
 
         while len(generated) < max_new_tokens:
             rounds += 1
@@ -163,6 +169,7 @@ class DagSpeculator:
                 return False
 
             if not selected:
+                abstain_events += 1
                 if emit_single():
                     break
                 continue
@@ -176,6 +183,7 @@ class DagSpeculator:
                     prop = []
                 if prop:
                     proposals[e] = prop
+                    proposals_made[e] += len(prop)
             if not proposals:
                 if emit_single():
                     break
@@ -202,6 +210,12 @@ class DagSpeculator:
             best, per_expert_m, corrections = verified
             m, bonus, winner, accepted = best
             accepted_tokens += m
+            selected_events += 1
+            winner_acceptance[winner] = winner_acceptance.get(winner, 0) + m
+            # Second-rank marginal: the winner is the router's second-ranked
+            # choice (decision.expert_subset[1]) rather than its top pick.
+            if len(decision.expert_subset) >= 2 and winner == decision.expert_subset[1]:
+                second_rank_wins += 1
 
             # Rebuild the continuation KV from the context cache (unmutated:
             # _verify_tree deep-copies it). A length-crop of the tree cache is
@@ -232,6 +246,11 @@ class DagSpeculator:
             "accepted_tokens": accepted_tokens,
             "tokens_per_round": len(generated) / max(1, rounds),
             "verify_nodes_per_round": verify_nodes / max(1, rounds),
+            "winner_acceptance": winner_acceptance,
+            "proposals_made": proposals_made,
+            "abstain_events": abstain_events,
+            "selected_events": selected_events,
+            "second_rank_wins": second_rank_wins,
         }
 
     def _verify_sequential(self, base_cache, ctx_len, t_next, dag, proposals, selected):

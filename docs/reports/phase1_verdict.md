@@ -255,6 +255,47 @@ verdict gates are real and reproducible.
 
 ---
 
+## Supporting metrics (plan todo 23)
+
+Collected by `scripts/supporting_metrics.py` on the structured task class
+(4 prompts × 3 runs, 465 rounds total; artifact `runs/results/supporting_metrics.json`).
+
+**Per-expert proposal utility** = winner-accepted tokens / (draft_ms + verify_ms·horizon):
+
+| Expert | Winner-accepted tokens | Proposals made | Cost (ms) | Proposal utility |
+|---|---|---|---|---|
+| copy | 0 | 0 | ~21 | 0.0 |
+| general | 111 | 1860 | ~259 | **0.4284** |
+| macro | 0 | 111 | ~21 | 0.0 |
+| reject_memory | 0 | 0 | ~20 | 0.0 |
+
+Only the neural general expert produces accepted branches at 0.6B; the
+structural experts (copy/macro/reject_memory) propose but never win a branch on
+this workload — consistent with the single-best-expert result dominating.
+
+**Second-expert marginal:** the router's second-ranked expert's branch won
+**17.4% of rounds** (81/465) — the second expert does contribute accepted
+branches a meaningful fraction of the time, so the marginal analysis is
+worth measuring at 8B where the neural expert is stronger.
+
+**Abstention:** rate **0.0** — the cold-start router (`tau_abstain=0.0`) never
+abstains, so abstention precision/recall is degenerate at this configuration.
+This is a pre-registered design choice for the cold-start phase; abstention
+behavior becomes measurable once the router is warmed (configs/router.yaml
+defaults `tau_abstain: 0.05`).
+
+**Cost breakdown vs §11.7 threat:** the DAG spends ~5.6–5.8 GFLOP per emitted
+token (tree verification over the full 28-layer target dominates) vs 0.9 GFLOP
+for vanilla and ~5.0 GFLOP for the equal-FLOP dense drafter — the speculative
+machinery's FLOP spend is the §11.7 threat, and it is the reason the DAG loses
+at 0.6B. See the FLOP ledger in `runs/results/phase1.csv`.
+
+**EAGLE-3 gap (honest):** no EAGLE-3 rows exist — the SpecForge pipeline
+(`scripts/setup_eagle3.sh`) requires pod training. The generalist bar is
+recorded as a reported gap, not fabricated.
+
+---
+
 ## Verification chain (all locally-checkable gates green)
 
 The M3 compliance chain is shipped and passing (commits `f608210`..`003a06f`):
