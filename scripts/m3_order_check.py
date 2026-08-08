@@ -13,6 +13,7 @@ import sys
 from pathlib import Path
 
 PROTOCOL = "configs/verdict_protocol.yaml"
+AMENDMENTS = "configs/ledger_amendments.yaml"
 CSV = "runs/results/phase1.csv"
 
 
@@ -48,6 +49,19 @@ def main() -> int:
             file=sys.stderr,
         )
         return 1
+    if Path(AMENDMENTS).exists():
+        am = _commit_ts(AMENDMENTS)
+        if am is None:
+            print(f"m3_order_check: {AMENDMENTS} uncommitted", file=sys.stderr)
+            return 1
+        am_sha, am_ts = am
+        if am_ts >= csv_ts:
+            print(
+                f"m3_order_check: {AMENDMENTS} committed {am_ts} >= phase1.csv mtime {csv_ts}; "
+                "amendment did not predate the campaign",
+                file=sys.stderr,
+            )
+            return 1
     print(
         f"m3_order_check: PASS ({PROTOCOL} @ {proto_sha} committed before phase1.csv)"
     )

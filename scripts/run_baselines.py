@@ -262,7 +262,7 @@ def _dag_factory(
     return make
 
 
-def _flops_ledger(system, spec_len, tpr, verify_nodes) -> dict:
+def _flops_ledger(system, spec_len, tpr, verify_nodes, verify_tokens=None) -> dict:
     from familydraft.eval.flops import FlopBudget, spec_loop_flops_per_emitted_token
 
     target_budget = FlopBudget.from_config(
@@ -275,11 +275,26 @@ def _flops_ledger(system, spec_len, tpr, verify_nodes) -> dict:
         return {"flops_per_emitted_token": target_budget.flops_per_token,
                 "label": "vanilla AR"}
     if system in ("small_dense_drafter", "equal_flop_dense_drafter"):
-        draft_tokens = verify_nodes = float(spec_len)
+        # Chain loop: one draft forward over spec_len tokens, verification feeds
+        # the same spec_len tokens, and only the bonus is decoded afterwards
+        # (the chain KV stays in branch order - no replay).
+        draft_tokens = verify_units = float(spec_len)
+        replay = False
+    elif system in ("single_best_expert", "hetero_top2_no_fusion", "full_proposal_moe"):
+        # DagSpeculator: verification feeds the measured token count (tree: node
+        # count once; sequential: sum of branch lengths with recomputed shared
+        # prefixes), then the accepted path + bonus is REPLAYED through the
+        # target every round - counted per emitted token.
+        draft_tokens = verify_nodes
+        verify_units = float(verify_tokens) if verify_tokens else float(verify_nodes)
+        replay = True
     else:
         draft_tokens = verify_nodes
+        verify_units = float(verify_nodes)
+        replay = False
     flops = spec_loop_flops_per_emitted_token(
-        target_budget, trunk_budget, draft_tokens, verify_nodes, tpr
+        target_budget, trunk_budget, draft_tokens, verify_units, tpr,
+        replays_accepted_path=replay,
     )
     return {"flops_per_emitted_token": flops, "dense_equivalent_layers": TRUNK_LAYERS,
             "label": system}
@@ -419,7 +434,7 @@ def main() -> int:
     )["input_ids"][0]
     target.generate_greedy(warm_ids, 8)
 
-    times, tprs, exacts, vnodes, emitted = [], [], [], [], []
+    times, tprs, exacts, vnodes, vfed, emitted = [], [], [], [], [], []
     for text in prompts:
         prompt_ids = target.tokenizer(
             text, return_tensors="pt", add_special_tokens=False
@@ -444,6 +459,8 @@ def main() -> int:
             emitted.append(len(res["tokens"]))
             if "verify_nodes_per_round" in res:
                 vnodes.append(res["verify_nodes_per_round"])
+            if "verify_tokens_per_round" in res:
+                vfed.append(res["verify_tokens_per_round"])
 
     mean_t = _mean(times)
     std_t = _std(times)
@@ -456,6 +473,7 @@ def main() -> int:
         args.spec_len,
         _mean(tprs) if tprs else 1.0,
         _mean(vnodes) if vnodes else float(args.spec_len),
+        _mean(vfed) if vfed else None,
     )
 
     report = {
@@ -489,6 +507,7 @@ def main() -> int:
             "bf16_exact_match_rate": _mean(exacts) if exacts else 1.0,
         },
         "tokens_per_round": _mean(tprs) if tprs else 1.0,
+        "verify_tokens_per_round": _mean(vfed) if vfed else 0.0,
     }
 
     out_name = f"{args.system}_{args.task_class}.json"

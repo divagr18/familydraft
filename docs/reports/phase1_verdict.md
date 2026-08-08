@@ -319,6 +319,18 @@ The M3 compliance chain is shipped and passing (commits `f608210`..`003a06f`):
   the tag `v0.3-M3` is withheld until the pod 8B campaign passes.
 - Full test suite: 146 passed.
 
+## Ledger amendment A1 (replay accounting)
+
+Recorded in `configs/ledger_amendments.yaml` (committed before the 8B campaign
+it governs; the pinned `configs/verdict_protocol.yaml` is untouched). The v1.0
+FLOP ledger counted only one bonus decode after verification; the DAG systems
+actually replay accepted + bonus through the target every round. Amended
+accounting counts that replay per emitted token and uses the measured
+verification tokens fed (`verify_tokens_per_round`). This raises the DAG's
+counted cost (anti-directional, more conservative). The 0.6B rows above predate
+A1; the verdict stands - it is decided by the ledger-independent primary metric
+`target_tokens_per_second`. The 8B verdict campaign runs under A1 end-to-end.
+
 Pod-deferred (not fabricatable locally): the 8B campaign, EAGLE-3 training via
 SpecForge (`scripts/setup_eagle3.sh` / `eval_eagle3.py` / `resume_baseline.sh`),
 MoE probe rows, and F3 manual QA. The one-command pod orchestrator

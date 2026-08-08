@@ -53,6 +53,16 @@ else
 fi
 
 # --- 2. Full baseline campaign (6 systems x 4 task classes) ------------------
+# Router weights: no trained 8B weights exist yet (the 0.6B ones carry a
+# target-id-0 one-hot slot that does not transfer). When the file is absent we
+# run on router priors + online feedback and record that in the campaign log.
+RW_ARGS=()
+if [ -f "configs/router_weights_8b.json" ]; then
+  RW_ARGS=(--router-weights configs/router_weights_8b.json)
+  log "3/8 router weights: configs/router_weights_8b.json (trained)"
+else
+  log "3/8 router weights: ABSENT -> router priors + online feedback (recorded)"
+fi
 log "3/8 full baseline campaign (--all, runs=$RUNS, spec_len=$SPEC_LEN)"
 python scripts/run_baselines.py --all \
   --repo "$REPO" \
@@ -61,7 +71,7 @@ python scripts/run_baselines.py --all \
   --max-prompts "$MAX_PROMPTS" \
   --spec-len "$SPEC_LEN" \
   --general-checkpoint "$CKPT" \
-  --router-weights "configs/router_weights_8b.json"
+  ${RW_ARGS[@]+"${RW_ARGS[@]}"}
 
 # --- 2b. Pre-registered ablation matrix (12 configs x 4 task classes) --------
 log "4/8 ablation matrix (12 configs x 4 task classes, runs=$RUNS)"
@@ -77,7 +87,7 @@ for ABL in configs/ablations/*.yaml; do
       --max-prompts "$MAX_PROMPTS" \
       --spec-len "$SPEC_LEN" \
       --general-checkpoint "$CKPT" \
-      --router-weights "configs/router_weights_8b.json" \
+      ${RW_ARGS[@]+"${RW_ARGS[@]}"} \
       || log "  WARNING: ablation $NAME/$TC failed (recorded, continuing)"
   done
 done

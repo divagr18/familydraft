@@ -1,0 +1,30 @@
+# FLOP-ledger amendments (additive; configs/verdict_protocol.yaml stays pinned).
+# Committed BEFORE any campaign row computed under them (checked by
+# scripts/m3_order_check.py). No verdict threshold, margin, system set, or
+# exactness rule from verdict_protocol.yaml is modified here.
+
+amendments:
+  - id: A1
+    date: "2026-08-08"
+    scope: "all campaigns from the 8B verdict campaign onward"
+    change: >
+      spec_loop_flops_per_emitted_token now accounts for the accepted-path
+      replay: DagSpeculator rebuilds its continuation cache by replaying
+      accepted + bonus (= emitted) tokens through the TARGET after every
+      verification round, so that cost is counted per emitted token for DAG
+      systems (single_best_expert, hetero_top2_no_fusion, full_proposal_moe).
+      Chain-loop systems (IntegratedSpeculator) forward only the bonus and
+      keep the old accounting. Verification cost also uses the measured
+      tokens actually fed (tree: node count once; sequential: sum of branch
+      lengths with recomputed shared prefixes) via verify_tokens_per_round.
+    rationale: >
+      The v1.0 ledger counted only one bonus decode after verification,
+      understating DAG target compute by ~m target-forwards per round and
+      sizing the equal-FLOP dense baseline too small (biased toward the
+      thesis). The fix raises the DAG's counted cost - it is
+      anti-directional and makes the comparison more conservative.
+    local_campaign_note: >
+      The exploratory 0.6B rows in runs/baselines predate A1 and were
+      computed under the v1.0 ledger. Their verdict (FAIL on the primary
+      metric target_tokens_per_second, exit 78) is ledger-independent and
+      stands.

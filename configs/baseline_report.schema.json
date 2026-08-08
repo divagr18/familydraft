@@ -18,6 +18,8 @@
     "runs": {"type": "integer", "minimum": 5},
     "config_hash": {"type": "string", "minLength": 8},
     "flops_per_emitted_token": {"type": "number", "exclusiveMinimum": 0},
+    "tokens_per_round": {"type": "number", "minimum": 0},
+    "verify_tokens_per_round": {"type": "number", "minimum": 0},
     "exactness": {"type": "object",
       "required": ["fp32_exact"],
       "properties": {

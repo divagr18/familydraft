@@ -58,17 +58,33 @@ def spec_loop_flops_per_emitted_token(
     draft_tokens_per_round: float,
     verify_nodes_per_round: float,
     emitted_tokens_per_round: float,
+    replays_accepted_path: bool = False,
 ) -> float:
     """FLOPs spent per emitted token by a speculative loop.
 
     Per round: the drafter (trunk) forwards the context+draft once, the target
-    verifies `verify_nodes` nodes, and the target decodes the bonus once. We
-    count (trunk_forward + verify_forward + bonus_decode) / emitted tokens.
+    verifies `verify_nodes` nodes, and the loop emits (m + 1) tokens. We count
+    (trunk_forward + verify_forward + post_verify_forward) / emitted tokens.
     Context length is excluded (shared baseline cost); the drafter's draft
     tokens are counted at trunk cost and the verified nodes at target cost.
+
+    Post-verification accounting (protocol v1.1 amendment):
+      - chain loops (``replays_accepted_path=False``) leave the verification KV
+        cache in branch order, so only the single bonus token is forwarded: one
+        target decode.
+      - tree-verified DAG loops (``replays_accepted_path=True``) rebuild the
+        continuation cache by replaying accepted + bonus (m + 1 = emitted)
+        tokens through the TARGET after verification (tree-cache rows are in
+        topological order, not branch order, so a length crop is not generally
+        safe). That replay is real compute and must be counted per emitted
+        token - omitting it understates the DAG's FLOP spend and sizes the
+        equal-FLOP dense baseline too small.
     """
     draft_flops = trunk_budget.flops_per_token * draft_tokens_per_round
     verify_flops = target_budget.flops_per_token * verify_nodes_per_round
-    bonus_flops = target_budget.flops_per_token  # 1 bonus decode
-    total = draft_flops + verify_flops + bonus_flops
+    if replays_accepted_path:
+        post_verify_flops = target_budget.flops_per_token * emitted_tokens_per_round
+    else:
+        post_verify_flops = target_budget.flops_per_token  # 1 bonus decode
+    total = draft_flops + verify_flops + post_verify_flops
     return total / max(1e-9, emitted_tokens_per_round)

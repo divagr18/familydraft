@@ -157,6 +157,7 @@ class DagSpeculator:
         rounds = 0
         accepted_tokens = 0
         verify_nodes = 0
+        verify_tokens = 0  # actual target tokens fed in verification forwards
         # Per-expert + abstention instrumentation (todo 23 supporting tables).
         winner_acceptance: dict[str, int] = {e: 0 for e in self.experts}
         proposals_made: dict[str, int] = {e: 0 for e in self.experts}
@@ -247,7 +248,8 @@ class DagSpeculator:
                 if emit_single():
                     break
                 continue
-            best, per_expert_m, corrections = verified
+            best, per_expert_m, corrections, tokens_fed = verified
+            verify_tokens += tokens_fed
             m, bonus, winner, accepted = best
             accepted_tokens += m
             selected_events += 1
@@ -286,6 +288,7 @@ class DagSpeculator:
             "accepted_tokens": accepted_tokens,
             "tokens_per_round": len(generated) / max(1, rounds),
             "verify_nodes_per_round": verify_nodes / max(1, rounds),
+            "verify_tokens_per_round": verify_tokens / max(1, rounds),
             "winner_acceptance": winner_acceptance,
             "proposals_made": proposals_made,
             "abstain_events": abstain_events,
@@ -301,11 +304,13 @@ class DagSpeculator:
         best = None
         per_expert_m: dict[str, int] = {}
         corrections: dict[str, tuple[list[int], int]] = {}
+        tokens_fed = 0
         for branch in dag.branches():
             if not branch:
                 continue
             cache_copy = copy.deepcopy(base_cache)
             cp, lg = self._feed(cache_copy, list(branch))
+            tokens_fed += len(branch)
             K = len(branch)
             m = 0
             bonus = t_next
@@ -326,7 +331,7 @@ class DagSpeculator:
                 corrections[src] = (list(branch[:m]), int(bonus))
             if best is None or m > best[0]:
                 best = (m, bonus, src, list(branch[:m]))
-        return best, per_expert_m, corrections
+        return best, per_expert_m, corrections, tokens_fed
 
     @staticmethod
     def _crop(cache, length: int):
@@ -422,7 +427,7 @@ class DagSpeculator:
                 corrections[src] = (list(branch[:m]), int(bonus))
             if best is None or m > best[0]:
                 best = (m, bonus, src, list(branch[:m]))
-        return best, per_expert_m, corrections
+        return best, per_expert_m, corrections, N
 
     def _maybe_record_rejection(self, context_ids, corrections) -> None:
         if self.memory is None:
