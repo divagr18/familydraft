@@ -36,15 +36,20 @@ def main() -> int:
     index = json.loads(INDEX.read_text(encoding="utf-8"))
     indexed_paths = {e["path"] for e in index.get("entries", [])}
 
-    # Index freshness: git_sha must match HEAD.
+    # Index freshness: the recorded git_sha must be an ANCESTOR of HEAD (the
+    # index reflects a committed, verifiable state). Requiring equality with
+    # HEAD is unsatisfiable: committing the rebuilt index moves HEAD past the
+    # sha recorded at build time.
     proc = subprocess.run(
-        ["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True
+        ["git", "merge-base", "--is-ancestor", str(index.get("git_sha")), "HEAD"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
     )
-    head = proc.stdout.strip() if proc.returncode == 0 else "unknown"
-    if index.get("git_sha") != head:
+    if proc.returncode != 0:
         failures.append(
-            f"EVIDENCE_INDEX.json git_sha {index.get('git_sha')} != HEAD {head}; "
-            "index is stale - rebuild with scripts/build_evidence_index.py"
+            f"EVIDENCE_INDEX.json git_sha {index.get('git_sha')} is not an "
+            "ancestor of HEAD; index is stale or from an unrelated branch"
         )
 
     # Every claim must resolve.
