@@ -132,7 +132,9 @@ def build_report(measured: dict, args) -> dict:
         "specforge_sha": args.specforge_sha,
         "train_hours": args.train_hours,
         "checkpoint": str(args.checkpoint),
-        "checkpoint_sha256": _sha(Path(args.checkpoint)) if Path(args.checkpoint).is_file() else "dir",
+        "checkpoint_sha256": (
+            _sha(Path(args.checkpoint)) if Path(args.checkpoint).is_file() else "dir"
+        ),
         "acc_len": measured.get("acc_len", 0.0),
         "note": measured.get("note", ""),
         "target_tokens_per_second": tps,

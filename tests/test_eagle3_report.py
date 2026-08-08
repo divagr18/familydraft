@@ -23,7 +23,8 @@ SCHEMA = _REPO / "configs" / "baseline_report.schema.json"
 
 
 def _load_module():
-    spec = importlib.util.spec_from_file_location("eval_eagle3", _REPO / "scripts" / "eval_eagle3.py")
+    spec = importlib.util.spec_from_file_location(
+        "eval_eagle3", _REPO / "scripts" / "eval_eagle3.py")
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod

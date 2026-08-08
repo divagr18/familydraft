@@ -216,7 +216,10 @@ def main() -> int:
                 "seen_accepted_length", "transfer_delta"])
             writer.writeheader()
             writer.writerows(deltas)
-        print(f"run_transfer_eval: wrote {delta_path.relative_to(REPO_ROOT)} ({len(deltas)} deltas)")
+        print(
+            f"run_transfer_eval: wrote {delta_path.relative_to(REPO_ROOT)} "
+            f"({len(deltas)} deltas)"
+        )
 
     print(f"run_transfer_eval: wrote {out_path.relative_to(REPO_ROOT)} ({len(rows)} rows)")
     for r in rows:
