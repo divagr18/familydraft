@@ -1,0 +1,21 @@
+{
+  "schema": "familydraft.dag_budget_policy.v1",
+  "description": "Per-target DAG node budget policy (plan todo 29). Nodes are capped where verify_cost(m)*m^-1 exceeds the vanilla decode cost; the 30B-A3B measured study is pod-deferred, the policy mechanism is codified here.",
+  "defaults": {
+    "max_nodes": 32,
+    "verify_cost_per_node_ms": 20.0,
+    "vanilla_decode_ms": 38.0
+  },
+  "targets": {
+    "Qwen/Qwen3-0.6B": {
+      "max_nodes": 32,
+      "verify_cost_per_node_ms": 20.0,
+      "vanilla_decode_ms": 49.0
+    },
+    "Qwen/Qwen3-8B": {
+      "max_nodes": 32,
+      "verify_cost_per_node_ms": 28.0,
+      "vanilla_decode_ms": 38.0
+    }
+  }
+}

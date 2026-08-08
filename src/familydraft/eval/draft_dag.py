@@ -71,6 +71,16 @@ class DagSpeculator:
         self.no_target_embedding = no_target_embedding
         self.no_online_feedback = no_online_feedback
         self.online_config = online_config or {}
+        self._dag_node_cap = None
+        if self.online_config.get("dag_budget_policy", {}).get("enabled", True):
+            try:
+                from familydraft.verify.budget_policy import load_dag_budget_policy
+
+                repo = str(getattr(target_model, "repo_id", ""))
+                policy = load_dag_budget_policy(repo)
+                self._dag_node_cap = policy.node_cap_from_verify()
+            except Exception:
+                self._dag_node_cap = None
         if self.online_config.get("isotonic_calibration", {}).get("enabled", True):
             from familydraft.calibration import IsotonicCalibration
 
@@ -218,6 +228,8 @@ class DagSpeculator:
             dag = CandidateDag()
             for eid, prop in enumerate(proposals.values()):
                 dag.insert(prop, expert_id=eid)
+            if self._dag_node_cap is not None:
+                dag.prune_to_budget(self._dag_node_cap)
             verify_nodes += dag.node_count
 
             if self.online_config.get("agreement_rule", {}).get("enabled", True):
