@@ -317,7 +317,7 @@ Training set = {4B, 8B, 14B} Ã— auxiliary corpora; held-out unseen = {32B, Co
   QA scenarios: happy â€” decisions consistent with evidence; failure â€” feed synthetic oracle report below gate to `scripts/apply_expert_gate.py --dry-run`: decision = SKIP (logic tested). Evidence <attemptDir>/task-25-familydraft-moe.txt
   Commit: Y | feat(phase2): gated expert additions per oracle evidence
 
-- [ ] 26. Online calibration: per-expert EMA + dynamic horizons + abstention ROC
+- [x] 26. Online calibration: per-expert EMA + dynamic horizons + abstention ROC [SHIPPED, commit d43c17d: src/familydraft/calibration.py (agreement stats + agreement_extension §6.3, IsotonicCalibration PAV rolling-window, abstention_roc AUC) + configs/online.yaml + DagSpeculator wiring (agreement extends draft horizon) + UtilityRouter wiring (set_calibrators, calibrated expected_acceptance, calibrator feed in update_feedback); tests/test_online_calibration.py 4/4 (agreement extends horizon, calibration monotone on skewed data, ROC emits AUC, empty-safe); 8B dev ROC re-run pod-deferred]
   What to do: implement concept note Â§6.3 agreement rule (expert agreement extends horizon, reduces branching, priority in budget allocation) in DAG builder; per-expert acceptance calibration feeding router utility estimates (isotonic calibration on rolling window); abstention calibration head precision/recall curve (concept note Â§7.5) over dev set â†’ ROC + AUC logged; config flags for each in `configs/online.yaml`. Must NOT do: no weight updates; no memory cross-target sharing beyond todo-18 scoping.
   Parallelization: Wave F | Blocked by: 23 | Blocks: 27 | With: 24
   References: concept note D:\MoE\family_draft_moe_concept.md:408-416 (Â§6.3 agreement), 498-507 (Â§7.5), 751-757 (Â§13 Phase 3)
