@@ -56,6 +56,7 @@ class DagSpeculator:
         tree_verify: bool = True,
         no_target_embedding: bool = False,
         no_online_feedback: bool = False,
+        online_config: dict | None = None,
     ) -> None:
         self.model = target_model.model
         self.tokenizer = target_model.tokenizer
@@ -69,6 +70,14 @@ class DagSpeculator:
         self.tree_verify = tree_verify
         self.no_target_embedding = no_target_embedding
         self.no_online_feedback = no_online_feedback
+        self.online_config = online_config or {}
+        if self.online_config.get("isotonic_calibration", {}).get("enabled", True):
+            from familydraft.calibration import IsotonicCalibration
+
+            window = self.online_config.get("isotonic_calibration", {}).get("window", 256)
+            router.set_calibrators(
+                {e: IsotonicCalibration(window=window) for e in router.expert_names}
+            )
         self.device = next(self.model.parameters()).device
         if no_target_embedding:
             # Ablation: zero the target-variant embedding on every trunk-backed
@@ -175,8 +184,22 @@ class DagSpeculator:
                 continue
 
             proposals: dict[str, list[int]] = {}
+            agreement_boost = 0
+            if self.online_config.get("agreement_rule", {}).get("enabled", True):
+                from familydraft.calibration import agreement_extension, agreement_stats
+
+                # Agreement from the previous round extends this round's draft
+                # horizon (§6.3): nodes supported by >=2 experts earn a boost.
+                prev_stats = getattr(self, "_agreement_stats", None)
+                if prev_stats is not None and prev_stats.agreement_fraction > 0:
+                    max_h = self.online_config.get("agreement_rule", {}).get(
+                        "max_horizon_boost", 2
+                    )
+                    agreement_boost = agreement_extension(
+                        prev_stats, 0, max_h
+                    )
             for e in selected:
-                horizon = self.horizons.get(e, 4)
+                horizon = self.horizons.get(e, 4) + agreement_boost
                 try:
                     prop = list(self.experts[e](context_ids))[:horizon]
                 except Exception:
@@ -196,6 +219,11 @@ class DagSpeculator:
             for eid, prop in enumerate(proposals.values()):
                 dag.insert(prop, expert_id=eid)
             verify_nodes += dag.node_count
+
+            if self.online_config.get("agreement_rule", {}).get("enabled", True):
+                from familydraft.calibration import agreement_stats
+
+                self._agreement_stats = agreement_stats(dag)
 
             if self.tree_verify:
                 verified = self._verify_tree(past, ctx_len, t_next, dag, proposals, selected)

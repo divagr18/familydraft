@@ -107,7 +107,16 @@ class UtilityRouter:
     def expected_acceptance(self, expert: str, features: list[float]) -> float:
         w = self.weights[expert]
         dot = sum(wi * xi for wi, xi in zip(w, features))
-        return max(0.0, self.base[expert] + dot)
+        raw = max(0.0, self.base[expert] + dot)
+        cal = getattr(self, "calibrators", {}).get(expert)
+        if cal is not None and cal.is_fitted:
+            return max(0.0, cal.calibrate(raw))
+        return raw
+
+    def set_calibrators(self, calibrators: dict) -> None:
+        """Attach per-expert isotonic calibrators (plan todo 26). The router's
+        utility estimates then pass through the calibrated acceptance."""
+        self.calibrators = dict(calibrators)
 
     def set_weights(self, weights: dict[str, list[float]]) -> None:
         """Load learned bandit weights (from rollout training)."""
@@ -191,6 +200,10 @@ class UtilityRouter:
         # selection tracks the live environment (the learned weights model the
         # feature response; base tracks the realised level).
         self.base[expert] = (1 - r) * self.base[expert] + r * max(0.0, accepted_len)
+        # Feed the per-expert isotonic calibrator with (predicted, measured).
+        cal = getattr(self, "calibrators", {}).get(expert)
+        if cal is not None:
+            cal.update(s.accepted_len_ema, max(0.0, accepted_len))
 
     def record_overlap(self, a: str, b: str, overlap: float) -> None:
         self.stats[a].overlap[b] = overlap

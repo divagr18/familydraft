@@ -1,0 +1,20 @@
+# Online calibration configuration (plan todo 26).
+#
+# Three independent calibration mechanisms, each toggleable. No weight updates;
+# calibration feeds the router's utility estimates and the DAG builder's
+# horizon/branching decisions. Per-target scoping is the caller's job.
+
+format_version: 1.0
+
+agreement_rule:
+  enabled: true
+  min_agree: 2          # nodes supported by >=2 experts are agreement points
+  max_horizon_boost: 2  # agreed prefix extends horizon by up to this many tokens
+
+isotonic_calibration:
+  enabled: true
+  window: 256           # rolling window of (predicted, measured) acceptance
+
+abstention_calibration:
+  enabled: true
+  min_samples: 32       # require this many dev pairs before emitting a ROC
