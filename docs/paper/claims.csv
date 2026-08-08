@@ -1,0 +1,12 @@
+claim_id,claim,evidence_path,verified
+C1,Verification acceptance is equivalent to vanilla greedy under exact (fp32) arithmetic,runs/p1_tree_test.py,true
+C2,Tree attention over a cached context reproduces per-node logits in one forward,runs/p1_tree_test.py,true
+C3,The multi-expert DAG is lossless (fp32) and deterministic on real prompts,runs/baselines/full_proposal_moe_code.json,true
+C4,The copy expert earns an exploratory speedup on repetition-heavy content,docs/reports/phase1_verdict.md,true
+C5,bf16 batch-vs-sequential KV drift flips near-tie argmaxes (agreement < 1.0),docs/reports/phase1_verdict.md,true
+C6,The integrated DAG loses to vanilla and to the equal-FLOP dense baseline at 0.6B scale,runs/results/phase1.csv,true
+C7,Every single ablation switch changes throughput <=4% except fixed-top1 and no-target-embedding,runs/baselines/abl_no_target_embedding_full_proposal_moe_structured.json,true
+C8,Seeded baseline reruns are bit-identical and injected noise is detected,runs/baselines/vanilla_ar_structured.json,true
+C9,The verdict protocol was pre-registered before the campaign (git ordering proof),docs/reports/phase1_verdict.md,true
+C10,EAGLE-3 and the 8B campaign are pod-deferred (reported gaps not fabricated),docs/reports/phase1_verdict.md,true
+C11,The sealed eval manifest is byte-verifiable (leak-proof),data/eval/MANIFEST.json,true
