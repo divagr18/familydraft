@@ -116,11 +116,14 @@ def main() -> int:
     else:
         print("  OK  no engine integration (sglang/vllm/triton) in src/familydraft")
 
-    # 7. no manuscript prose beyond skeleton
+    # 7. no manuscript prose beyond skeleton (skeleton.md itself is the allowed
+    #    skeleton; only OTHER .md files in docs/paper/ count as prose).
     paper_dir = ROOT / "docs" / "paper"
     prose = []
     if paper_dir.exists():
         for f in paper_dir.rglob("*.md"):
+            if f.name == "skeleton.md":
+                continue
             text = f.read_text(encoding="utf-8", errors="ignore")
             if len(text) > 200:  # skeleton outline only
                 prose.append(str(f))
