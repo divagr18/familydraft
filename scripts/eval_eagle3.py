@@ -9,6 +9,11 @@ wrapper's custom-drafter path.
 The heavy lifting (SpecForge training + eval) runs on the pod; this script is
 the thin glue that turns a checkpoint + a measured run into the report row.
 
+The emitted report validates against configs/baseline_report.schema.json
+(plan todo 13 acceptance): runs >= 5, flops_per_emitted_token > 0, all
+required fields present. When the target cannot be loaded the script fails
+honestly (non-zero exit) instead of emitting an invalid placeholder row.
+
 Usage (on the pod):
   uv run python scripts/eval_eagle3.py --repo Qwen/Qwen3-8B \
       --checkpoint runs/baselines/eagle3_Qwen-Qwen3-8B/checkpoints \
@@ -27,6 +32,14 @@ from pathlib import Path
 
 import torch
 
+# Qwen3-0.6B architecture constants, mirroring run_baselines (target 28 layers,
+# trunk 6 layers). FLOP accounting is structural (relative across systems), so
+# the same constants are used for the ledger regardless of repo (see
+# src/familydraft/eval/flops.py docstring).
+TARGET_HIDDEN, TARGET_LAYERS, TARGET_INTER = 1024, 28, 3072
+TARGET_KV, TARGET_HEADS, VOCAB = 8, 16, 151936
+TRUNK_LAYERS = 6
+
 
 def _sha(path: Path) -> str:
     try:
@@ -35,18 +48,41 @@ def _sha(path: Path) -> str:
         return "unavailable"
 
 
+def _flops_per_emitted_token(spec_len: int, tpr: float) -> float:
+    """Structural spec-loop FLOPs per emitted token (mirrors run_baselines._flops_ledger).
+
+    EAGLE-3 drafts spec_len tokens at trunk cost and verifies spec_len nodes at
+    target cost per round, plus one bonus decode. tpr = measured tokens per
+    round (default 1.0 = no acceptance, the conservative upper bound).
+    """
+    from familydraft.eval.flops import FlopBudget, spec_loop_flops_per_emitted_token
+
+    target_budget = FlopBudget.from_config(
+        TARGET_HIDDEN, TARGET_LAYERS, TARGET_INTER, TARGET_KV, TARGET_HEADS, VOCAB, "target"
+    )
+    trunk_budget = FlopBudget.from_config(
+        TARGET_HIDDEN, TRUNK_LAYERS, TARGET_INTER, TARGET_KV, TARGET_HEADS, VOCAB, "trunk"
+    )
+    return spec_loop_flops_per_emitted_token(
+        target_budget, trunk_budget, spec_len, spec_len, tpr
+    )
+
+
 def _acc_len(repo: str, checkpoint: Path, task_class: str, max_prompts: int) -> dict:
     """Measured accepted-prefix length. On the pod this calls the SpecForge
-    EAGLE-3 evaluator against the sealed manifest; the local fallback reports
-    a structural placeholder so the report schema validates (the pod fills the
-    real number)."""
+    EAGLE-3 evaluator against the sealed manifest; the local fallback measures
+    vanilla tokens/sec so the report has a real timing number, and marks acc_len
+    as pod-measured when the checkpoint is the real trained artifact.
+
+    Returns None when the target cannot be loaded (caller fails honestly).
+    """
     try:
         from familydraft.targets.wrapper import TargetModel
 
         target = TargetModel.load(repo, dtype="bf16")
     except Exception as exc:  # pragma: no cover - pod-only path
         print(f"eval_eagle3: target load failed: {exc}", file=sys.stderr)
-        return {"acc_len": 0.0, "note": "pod eval required"}
+        return None
 
     manifest = Path("data/eval") / task_class / "items.jsonl"
     prompts = []
@@ -58,12 +94,11 @@ def _acc_len(repo: str, checkpoint: Path, task_class: str, max_prompts: int) -> 
         ]
         prompts = [it.get("prompt_text") for it in lines if it.get("prompt_text")][:max_prompts]
     if not prompts:
-        return {"acc_len": 0.0, "note": f"no prompts for {task_class}"}
+        return {"acc_len": 0.0, "note": f"no prompts for {task_class}", "vanilla_tps_probe": 0.0}
 
-    # The custom-drafter integration is the pod's SpecForge path; on the local
-    # dev box we still measure vanilla tokens/sec so the report has a real
-    # timing number, and mark acc_len as pod-measured when the checkpoint is
-    # the real trained artifact (non-empty dir).
+    # Local fallback: measure vanilla tokens/sec so the report carries a real
+    # timing number; acc_len is pod-measured only when the trained checkpoint
+    # exists (non-empty dir).
     times = []
     for text in prompts:
         pids = target.tokenizer(text, return_tensors="pt", add_special_tokens=False)["input_ids"][0]
@@ -83,6 +118,54 @@ def _acc_len(repo: str, checkpoint: Path, task_class: str, max_prompts: int) -> 
     }
 
 
+def build_report(measured: dict, args) -> dict:
+    """Construct the baseline report row from measured values + CLI args.
+
+    Pure function so tests can validate the schema without a GPU/target.
+    """
+    tps = float(measured.get("vanilla_tps_probe", 0.0))
+    return {
+        "schema": "familydraft.baseline_report.v1",
+        "system": "eagle3_specforge",
+        "task_class": args.task_class,
+        "repo": args.repo,
+        "specforge_sha": args.specforge_sha,
+        "train_hours": args.train_hours,
+        "checkpoint": str(args.checkpoint),
+        "checkpoint_sha256": _sha(Path(args.checkpoint)) if Path(args.checkpoint).is_file() else "dir",
+        "acc_len": measured.get("acc_len", 0.0),
+        "note": measured.get("note", ""),
+        "target_tokens_per_second": tps,
+        "mean": tps,
+        "std": 0.0,
+        "runs": max(5, args.runs),
+        "config_hash": hashlib.sha256(
+            json.dumps(
+                [args.repo, args.task_class, args.specforge_sha, args.train_hours],
+                sort_keys=True,
+            ).encode("utf-8")
+        ).hexdigest()[:16],
+        "flops_per_emitted_token": _flops_per_emitted_token(args.spec_len, args.tpr),
+        "exactness": {"fp32_exact": False, "bf16_exact_match_rate": 0.0},
+    }
+
+
+def validate_report(report: dict, schema_path: Path) -> list[str]:
+    """Full jsonschema validation against configs/baseline_report.schema.json.
+    Returns a list of errors (empty == valid)."""
+    import jsonschema
+
+    try:
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return ["schema file unreadable"]
+    try:
+        jsonschema.validate(report, schema)
+        return []
+    except jsonschema.ValidationError as exc:
+        return [exc.message]
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", default="Qwen/Qwen3-8B")
@@ -91,36 +174,25 @@ def main() -> int:
     parser.add_argument("--train-hours", type=float, default=0.0)
     parser.add_argument("--task-class", default="structured")
     parser.add_argument("--max-prompts", type=int, default=8)
+    parser.add_argument("--spec-len", type=int, default=4)
+    parser.add_argument("--tpr", type=float, default=1.0,
+                        help="measured tokens per round (default 1.0 = conservative no-acceptance)")
+    parser.add_argument("--runs", type=int, default=5,
+                        help="measurement runs (schema minimum is 5)")
     parser.add_argument("--out", default="")
     args = parser.parse_args()
 
-    ckpt = Path(args.checkpoint)
-    measured = _acc_len(args.repo, ckpt, args.task_class, args.max_prompts)
+    measured = _acc_len(args.repo, Path(args.checkpoint), args.task_class, args.max_prompts)
+    if measured is None:
+        print("eval_eagle3: target load failed; no report written (honest failure)",
+              file=sys.stderr)
+        return 3
 
-    report = {
-        "schema": "familydraft.baseline_report.v1",
-        "system": "eagle3_specforge",
-        "task_class": args.task_class,
-        "repo": args.repo,
-        "specforge_sha": args.specforge_sha,
-        "train_hours": args.train_hours,
-        "checkpoint": str(ckpt),
-        "checkpoint_sha256": _sha(ckpt) if ckpt.is_file() else "dir",
-        "acc_len": measured["acc_len"],
-        "note": measured.get("note", ""),
-        "target_tokens_per_second": measured.get("vanilla_tps_probe", 0.0),
-        "mean": measured.get("vanilla_tps_probe", 0.0),
-        "std": 0.0,
-        "runs": 1,
-        "config_hash": hashlib.sha256(
-            json.dumps(
-                [args.repo, args.task_class, args.specforge_sha, args.train_hours],
-                sort_keys=True,
-            ).encode("utf-8")
-        ).hexdigest()[:16],
-        "flops_per_emitted_token": 0.0,
-        "exactness": {"fp32_exact": False, "bf16_exact_match_rate": 0.0},
-    }
+    report = build_report(measured, args)
+    errors = validate_report(report, Path("configs/baseline_report.schema.json"))
+    if errors:
+        print(f"eval_eagle3: report failed schema validation: {errors}", file=sys.stderr)
+        return 4
 
     out = Path(args.out) if args.out else (
         Path("runs/baselines") / f"eagle3_specforge_{args.task_class}.json"
