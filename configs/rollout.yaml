@@ -1,0 +1,27 @@
+# Rollout policy training configuration (plan todo 20).
+#
+# Policy scope: ROUTER + HORIZON only. Drafter weights are FROZEN. Reward is
+# measured net tokens/sec improvement vs a vanilla window (cost-adjusted).
+# Exploration uses stochastic expert-head temperature during training;
+# verdict measurements stay greedy per protocol.
+
+format_version: 1.0
+
+# Dev subset: run draft-and-verify over this many distillation shard rows.
+dev_records: 32
+
+# Training budget.
+steps: 200
+eval_cadence: 25          # greedy eval every N steps
+max_steps_without_improvement: 75   # freeze early if no gain over this many steps
+
+# Reward / baseline.
+vanilla_window: 32        # tokens of vanilla decode used as the speed baseline
+ema_baseline_rate: 0.2    # control-variate EMA for the reward signal
+reward_scale: 0.01        # policy update step for per-expert base
+
+# Exploration.
+draft_temperature: 1.0    # tau_draft > 0 during training rollouts
+
+# Reproducibility.
+seed: 42
