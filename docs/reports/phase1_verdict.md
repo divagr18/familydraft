@@ -251,3 +251,33 @@ much per forward as the 28-layer target's decode. The thesis measurement remains
 the 8B pod campaign (larger target amortizes drafting overhead; EAGLE-3 provides
 the generalist bar). The infrastructure is the deliverable of this round; the
 verdict gates are real and reproducible.
+
+---
+
+## Verification chain (all locally-checkable gates green)
+
+The M3 compliance chain is shipped and passing (commits `f608210`..`003a06f`):
+
+- **`scripts/f1_audit.py` — PASS (6/6):** M1 tag `v0.1-M1` present; M2 report
+  present (v0.2-M2-NOGO implied); `v0.3-M3` correctly withheld while FAIL;
+  verdict protocol predates the campaign (git ordering); sealed-manifest
+  leak-proof re-run; protocol working-tree immutability.
+- **`scripts/f2_f4_audit.py` — PASS (11/11):** ruff clean; no TODO/FIXME
+  comment markers outside docs/; no flash-attn in `verify/`; dependency pins
+  match `uv.lock`; no QwQ/235B/Qwen3.5 artifacts; no engine integration code
+  in `src/familydraft`; `docs/paper/` skeleton-only; no secrets in git-tracked
+  files; verdict protocol + oracle thresholds unmodified since the M3 pin
+  commit; `configs/expert_gates.yaml` present.
+- **`scripts/m3_order_check.py` — PASS:** protocol committed before `phase1.csv`.
+- **`scripts/check_evidence_index.py` — PASS:** `EVIDENCE_INDEX.json` (130
+  artifacts, sha256 + git-sha) resolves all 11 claims in `docs/paper/claims.csv`.
+- **`scripts/check_determinism.py` — verified:** seeded rerun bit-identical
+  (PASS), injected-noise mutation caught (FAIL naming the divergent pair).
+- **`scripts/m3_verdict.py` — exit 78 (FAIL):** the honest gate result at 0.6B;
+  the tag `v0.3-M3` is withheld until the pod 8B campaign passes.
+- Full test suite: 146 passed.
+
+Pod-deferred (not fabricatable locally): the 8B campaign, EAGLE-3 training via
+SpecForge (`scripts/setup_eagle3.sh` / `eval_eagle3.py` / `resume_baseline.sh`),
+MoE probe rows, and F3 manual QA. The one-command pod orchestrator
+(`scripts/run_phase1_8b.sh`) runs the entire campaign when executed on the pod.
