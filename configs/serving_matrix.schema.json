@@ -1,0 +1,35 @@
+{
+  "schema": "familydraft.serving_matrix.v1",
+  "description": "Validation schema for the Phase-4 serving batch matrix (plan todo 28): 3 batch sizes x 3 systems x (throughput, latency) plus the SGLang version and config hash. Pre-registered before the pod serves, mirroring configs/baseline_report.schema.json.",
+  "type": "object",
+  "required": ["sglang_version", "config_hash", "systems", "batch_sizes", "cells"],
+  "properties": {
+    "sglang_version": {"type": "string", "minLength": 1},
+    "config_hash": {"type": "string", "minLength": 8},
+    "systems": {
+      "type": "array",
+      "minItems": 3,
+      "items": {"type": "string"},
+      "contains": {"enum": ["familydraft_dag", "vanilla_ar", "eagle3_specforge"]}
+    },
+    "batch_sizes": {
+      "type": "array",
+      "minItems": 3,
+      "items": {"type": "integer", "minimum": 1}
+    },
+    "cells": {
+      "type": "array",
+      "minItems": 9,
+      "items": {
+        "type": "object",
+        "required": ["system", "batch_size", "throughput_tokens_per_sec", "latency_ms_per_request"],
+        "properties": {
+          "system": {"type": "string"},
+          "batch_size": {"type": "integer", "minimum": 1},
+          "throughput_tokens_per_sec": {"type": "number", "exclusiveMinimum": 0},
+          "latency_ms_per_request": {"type": "number", "exclusiveMinimum": 0}
+        }
+      }
+    }
+  }
+}
