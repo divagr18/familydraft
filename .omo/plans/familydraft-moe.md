@@ -350,7 +350,7 @@ Training set = {4B, 8B, 14B} Ã— auxiliary corpora; held-out unseen = {32B, Co
   QA scenarios: happy â€” report + policy regression green; failure â€” policy with invalid thresholds rejected by schema validation at load (test asserts). Evidence <attemptDir>/task-29-familydraft-moe.txt
   Commit: Y | docs(phase4): MoE-target verification study + DAG budget policy
 
-- [ ] 30. Evidence package + paper skeleton
+- [x] 30. Evidence package + paper skeleton [SHIPPED - commit 95b8727: scripts/build_evidence_index.py (130 artifacts, sha256+git-sha) + scripts/check_evidence_index.py (all 11 claims resolve, PASS) + docs/paper (claims.csv/skeleton.md/refs.bib seeded from Findings) + README repo map + one-command-per-milestone reproduce (dry-run PASS: all referenced scripts exist); full-clone paper write-up remains post-pod]
   What to do: `scripts/build_evidence_index.py`: index EVERY runs/, traces manifest, checkpoint reference, and report artifact with sha256 + git sha + config hash into `EVIDENCE_INDEX.json`; `docs/paper/` skeleton: section outline (intro/related/method/experiments) with each planned claim mapped to an evidence path (claims table), related-work `refs.bib` seeded from draft Findings (Jakiro, SpecForge, EAGLE 1-3, MetaSD, Not-a-Bandit, BanditSpec, Cascade, EVICT, EcoSpec, DraftExpert, Medusa, Sequoia/UMbreLLa, SpecInfer); README.md final: repo map + reproduce-from-scratch instructions (one command per milestone). Must NOT do: no full manuscript prose; no result reinterpretation beyond the verdict reports.
   Parallelization: Wave G (final) | Blocked by: all | Blocks: none | With: none
   References: all prior todos; draft Findings bibliography; concept note Â§12 framing (lines 712-727)
