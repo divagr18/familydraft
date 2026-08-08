@@ -301,7 +301,7 @@ Training set = {4B, 8B, 14B} Ã— auxiliary corpora; held-out unseen = {32B, Co
   Commit: Y | docs(report): Phase-1 verdict + reference corrections
 
 ### Wave F â€” Phase 2: specialization & transfer; Phase 3: online adaptation
-- [ ] 24. Target-variant conditioning at scale + zero-shot transfer eval
+- [ ] 24. Target-variant conditioning at scale + zero-shot transfer eval [HARNESS SHIPPED (locally-completable): scripts/run_transfer_eval.py (seen-target GUARD refuses training-set targets {4B,8B,14B} with named offenders, emits runs/results/phase2_transfer.csv with target x task-class {accepted_length, tokens_per_sec, drafter_overhead_rounds, config_hash, seed} + transfer-delta log; chain factory mirrors run_baselines._chain_factory) + tests/test_transfer_guard.py (guard refusal, mixed-list naming, unseen pass-through, CLI refusal before CUDA check, CSV columns, delta math; 6/6); full-matrix training + 32B/Coder-30B-A3B transfer runs pod-deferred]
   What to do: extend distillation (todo-15 recipe) to full target matrix {8B, 14B, 32B, Coder-30B-A3B} with target_id conditioning on RunPod; zero-shot transfer test per concept note Â§9 Q6: train on {4B, 8B, 14B} only, evaluate acceptance + tokens/sec on UNSEEN 32B and unseen Coder-30B-A3B targets without retraining; report per-target tables. Must NOT do: no per-target retraining in the transfer rows (that defeats the test); no changes to router architecture.
   Parallelization: Wave F | Blocked by: 23 | Blocks: 25 | With: 26
   References: concept note D:\MoE\family_draft_moe_concept.md:431-441 (Â§7.1 conditioning), line 562 (Â§9 Q6), 56-62 (Â§2); draft D1
