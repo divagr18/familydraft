@@ -784,17 +784,31 @@ Success criterion: heterogeneous top-2 beats an equal-active-FLOP dense drafter 
 
 ## 15. References
 
-1. Huang, H., Yang, F., Liu, Z., & Ren, P. **Jakiro: Boosting Speculative Decoding via Decoupled MoE.** ACL 2026.  
-   https://aclanthology.org/2026.acl-long.487/
+1. Huang, H., Yang, F., Liu, Z., & Ren, P. **Jakiro: Boosting Speculative Decoding via Decoupled MoE.** ACL 2026. arXiv:2502.06282.  
+   https://aclanthology.org/2026.acl-long.487/ · https://arxiv.org/abs/2502.06282
 
 2. Li, S. et al. **SpecForge: A Flexible and Efficient Open-Source Training Framework for Speculative Decoding.** arXiv:2603.18567, 2026.  
    https://arxiv.org/abs/2603.18567
 
-3. Kim, T., Jung, H., & Yun, S.-Y. **Multi-Drafter Speculative Decoding with Alignment Feedback.** arXiv:2604.05417, 2026.  
+3. Kim, T., Jung, H., & Yun, S.-Y. **Meta Speculation: Sampling Can Be Faster Than the Optimal Multi-Step Speculation (MetaSD).** Findings of ACL 2026 (2026.findings-acl.1629). arXiv:2604.05417.  
    https://arxiv.org/abs/2604.05417
 
 4. Liu, H., Huang, J., Jia, Z., Park, Y., & Wang, Y.-X. **Not-a-Bandit: Provably No-Regret Drafter Selection in Speculative Decoding for LLMs.** arXiv:2510.20064.  
    https://arxiv.org/abs/2510.20064
+
+5. Chen, Z. et al. **Cascade Speculative Drafting for Even Faster LLM Inference.** arXiv:2506.20675, 2025.  
+   https://arxiv.org/abs/2506.20675
+
+6. Xia, H. et al. **BanditSpec: Bandit-Based Speculative Decoding.** ICML 2025. arXiv:2505.15141.  
+   https://arxiv.org/abs/2505.15141
+
+7. Liu, Y. et al. **EVICT: Efficient Verification for Iteratively-Correcting Tree-based Speculative Decoding.** arXiv:2605.00342, 2026.  
+   https://arxiv.org/abs/2605.00342
+
+8. Cao, X. et al. **EcoSpec: Efficiently Computing the Speculative Decoding Speedup.** arXiv:2607.12696, 2026.  
+   https://arxiv.org/abs/2607.12696
+
+9. **Phase-1 verdict and measured results:** `docs/reports/phase1_verdict.md` (pre-registered protocol, local 0.6B campaign + ablation matrix, evidence index in `EVIDENCE_INDEX.json`).
 
 ---
 
