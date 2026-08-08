@@ -61,10 +61,11 @@ Integrated speculative loop (chain verification, KV-cache reuse) vs vanilla gree
 | Qwen3-0.6B, repetitive | copy | 1.17x | 1.34 | ~1.0 | 49.3 |
 | Qwen3-0.6B, code/repetitive | general | 0.38-0.46x | ~1.0 | - | - |
 
-Artifacts: `runs/results/integrated_speedup_8b.json`,
-`runs/results/integrated_8b_trained_repetitive.json`,
-`runs/results/integrated_8b_trained_code.json`,
-`runs/results/integrated_speedup.json` (0.6B), `runs/results/local_validate.json`.
+Local artifacts: `runs/results/integrated_speedup.json` (0.6B),
+`runs/results/phase1.csv`, `runs/baselines/*.json`. The 8B artifacts
+(`integrated_speedup_8b.json`, `integrated_8b_trained_*.json`) live on the
+RunPod network volume and are pod-deferred; the numbers above are the
+exploratory measurements reported at the time.
 
 ---
 
